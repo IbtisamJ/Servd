@@ -1,5 +1,5 @@
 export interface Donation {
-  donationId: string;
+  donationId?: string;
   enterpriseId: string;
   foodName: string;
   category: string;
