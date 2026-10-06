@@ -1,13 +1,14 @@
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    updateDoc,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  updateDoc,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
+import { DONATION_STATUS } from "../constants/donationStatus";
 import { Donation } from "../types/Donations";
 
 /**
@@ -30,9 +31,9 @@ export const getDonations = async () => {
     collection(db, "donations")
   );
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
+  return snapshot.docs.map((document) => ({
+    id: document.id,
+    ...document.data(),
   }));
 };
 
@@ -56,6 +57,48 @@ export const updateDonation = async (
 };
 
 /**
+ * Reserve Donation
+ */
+export const reserveDonation = async (
+  donationId: string
+) => {
+  const donationRef = doc(
+    db,
+    "donations",
+    donationId
+  );
+
+  return await updateDoc(
+    donationRef,
+    {
+      status:
+        DONATION_STATUS.RESERVED,
+    }
+  );
+};
+
+/**
+ * Mark Donation Collected
+ */
+export const collectDonation = async (
+  donationId: string
+) => {
+  const donationRef = doc(
+    db,
+    "donations",
+    donationId
+  );
+
+  return await updateDoc(
+    donationRef,
+    {
+      status:
+        DONATION_STATUS.COLLECTED,
+    }
+  );
+};
+
+/**
  * Cancel Donation
  */
 export const cancelDonation = async (
@@ -67,9 +110,34 @@ export const cancelDonation = async (
     donationId
   );
 
-  return await updateDoc(donationRef, {
-    status: "Cancelled",
-  });
+  return await updateDoc(
+    donationRef,
+    {
+      status:
+        DONATION_STATUS.CANCELLED,
+    }
+  );
+};
+
+/**
+ * Expire Donation
+ */
+export const expireDonation = async (
+  donationId: string
+) => {
+  const donationRef = doc(
+    db,
+    "donations",
+    donationId
+  );
+
+  return await updateDoc(
+    donationRef,
+    {
+      status:
+        DONATION_STATUS.EXPIRED,
+    }
+  );
 };
 
 /**
@@ -84,5 +152,7 @@ export const deleteDonation = async (
     donationId
   );
 
-  return await deleteDoc(donationRef);
+  return await deleteDoc(
+    donationRef
+  );
 };
