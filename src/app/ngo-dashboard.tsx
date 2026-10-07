@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import {
     StyleSheet,
     Text,
@@ -50,6 +51,9 @@ export default function NGODashboard() {
 
       <TouchableOpacity
         style={styles.button}
+        onPress={() =>
+          router.push("/available-donations")
+        }
       >
         <Text style={styles.buttonText}>
           Browse Donations
@@ -58,9 +62,23 @@ export default function NGODashboard() {
 
       <TouchableOpacity
         style={styles.button}
+        onPress={() =>
+          router.push("/my-reservations")
+        }
       >
         <Text style={styles.buttonText}>
           View Reservations
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() =>
+          router.push("/ngo-verification")
+        }
+      >
+        <Text style={styles.buttonText}>
+          NGO Verification
         </Text>
       </TouchableOpacity>
     </View>
@@ -71,8 +89,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: SPACING.lg,
-    backgroundColor:
-      COLORS.offWhite,
+    backgroundColor: COLORS.offWhite,
   },
 
   heading: {
@@ -82,15 +99,10 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor:
-      COLORS.beige,
-
+    backgroundColor: COLORS.beige,
     padding: SPACING.md,
-
     borderRadius: 10,
-
-    marginBottom:
-      SPACING.md,
+    marginBottom: SPACING.md,
   },
 
   label: {
@@ -99,18 +111,13 @@ const styles = StyleSheet.create({
 
   value: {
     ...TYPOGRAPHY.headingSmall,
-    color:
-      COLORS.primaryGreen,
+    color: COLORS.primaryGreen,
   },
 
   button: {
-    backgroundColor:
-      COLORS.primaryTeal,
-
+    backgroundColor: COLORS.primaryTeal,
     padding: SPACING.md,
-
     borderRadius: 10,
-
     marginTop: SPACING.md,
   },
 
@@ -120,4 +127,3 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.button,
   },
 });
-``
