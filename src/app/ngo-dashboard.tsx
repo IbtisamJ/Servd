@@ -1,15 +1,26 @@
-import { router } from "expo-router";
-import {
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+/**
+ * NGO Dashboard Screen
+ *
+ * Displays:
+ * - Verification status
+ * - Navigation to available donations
+ * - Navigation to reservations
+ * - Navigation to NGO verification details
+ */
 
 import {
-    COLORS,
-    SPACING,
-    TYPOGRAPHY,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import { router } from "expo-router";
+
+import {
+  COLORS,
+  SPACING,
+  TYPOGRAPHY,
 } from "../theme";
 
 export default function NGODashboard() {
@@ -19,6 +30,7 @@ export default function NGODashboard() {
         NGO Dashboard
       </Text>
 
+      {/* NGO Verification Status */}
       <View style={styles.card}>
         <Text style={styles.label}>
           Verification Status
@@ -29,26 +41,7 @@ export default function NGODashboard() {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>
-          Available Donations
-        </Text>
-
-        <Text style={styles.value}>
-          0
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>
-          My Reservations
-        </Text>
-
-        <Text style={styles.value}>
-          0
-        </Text>
-      </View>
-
+      {/* Browse available donations */}
       <TouchableOpacity
         style={styles.button}
         onPress={() =>
@@ -60,6 +53,7 @@ export default function NGODashboard() {
         </Text>
       </TouchableOpacity>
 
+      {/* View reservations */}
       <TouchableOpacity
         style={styles.button}
         onPress={() =>
@@ -71,6 +65,7 @@ export default function NGODashboard() {
         </Text>
       </TouchableOpacity>
 
+      {/* View NGO verification details */}
       <TouchableOpacity
         style={styles.button}
         onPress={() =>
@@ -101,8 +96,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.beige,
     padding: SPACING.md,
-    borderRadius: 10,
-    marginBottom: SPACING.md,
+    borderRadius: 12,
+    marginBottom: SPACING.lg,
   },
 
   label: {
@@ -118,12 +113,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryTeal,
     padding: SPACING.md,
     borderRadius: 10,
-    marginTop: SPACING.md,
+    marginBottom: SPACING.md,
   },
 
   buttonText: {
-    color: COLORS.white,
-    textAlign: "center",
     ...TYPOGRAPHY.button,
+    textAlign: "center",
+    color: COLORS.white,
   },
 });
