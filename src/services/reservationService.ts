@@ -1,27 +1,34 @@
 import {
-    addDoc,
-    collection,
-    doc,
-    getDocs,
-    updateDoc,
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  updateDoc,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
 
+/**
+ * Creates a new reservation record.
+ * Called when an NGO reserves a donation.
+ */
 export const createReservation =
   async (
     reservation: any
   ) => {
-
     return await addDoc(
       collection(
         db,
-        "reservations"
+        "Reservations"
       ),
       reservation
     );
   };
 
+/**
+ * Retrieves all reservations.
+ * Used in the My Reservations screen.
+ */
 export const getReservations =
   async () => {
 
@@ -29,7 +36,7 @@ export const getReservations =
       await getDocs(
         collection(
           db,
-          "reservations"
+          "Reservations"
         )
       );
 
@@ -41,6 +48,13 @@ export const getReservations =
     );
   };
 
+/**
+ * Updates reservation status.
+ * Possible values:
+ * Active
+ * Collected
+ * Cancelled
+ */
 export const updateReservationStatus =
   async (
     reservationId: string,
@@ -50,7 +64,7 @@ export const updateReservationStatus =
     const reservationRef =
       doc(
         db,
-        "reservations",
+        "Reservations",
         reservationId
       );
 
@@ -61,4 +75,3 @@ export const updateReservationStatus =
       }
     );
   };
-``
