@@ -1,19 +1,22 @@
 /**
  * Available Donations Screen
  *
- * Displays all donations that are currently
- * available for NGOs to reserve.
+ * Displays donations from Firestore that currently
+ * have the status "Available".
  *
- * Data is retrieved from the Firestore
- * Donations collection.
+ * The screen refreshes whenever it receives focus,
+ * ensuring reservation, cancellation and manual
+ * Firestore updates are reflected immediately.
  */
 
 import {
-  useEffect,
+  useCallback,
   useState,
 } from "react";
 
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -21,11 +24,18 @@ import {
   View,
 } from "react-native";
 
-import { router } from "expo-router";
+import {
+  router,
+  useFocusEffect,
+} from "expo-router";
 
 import {
   getDonations,
 } from "../services/donationService";
+
+import {
+  DONATION_STATUS,
+} from "../constants/donationStatus";
 
 import {
   COLORS,
@@ -34,57 +44,115 @@ import {
 } from "../theme";
 
 export default function AvailableDonations() {
+  /**
+   * Stores donations that are currently
+   * available for reservation.
+   */
   const [donations, setDonations] =
     useState<any[]>([]);
 
   /**
-   * Load donations when the screen opens.
+   * Controls the loading indicator while
+   * Firestore data is being retrieved.
    */
-  useEffect(() => {
-    loadDonations();
-  }, []);
+  const [loading, setLoading] =
+    useState(true);
 
   /**
-   * Retrieves donation data from Firestore.
-   * Only donations with status "Available"
-   * are displayed.
+   * Retrieves all donation records from Firestore
+   * and filters the results so that only donations
+   * with an Available status are displayed.
    */
-  const loadDonations = async () => {
-    try {
-      const data =
-        await getDonations();
+  const loadDonations =
+    useCallback(async () => {
+      try {
+        setLoading(true);
 
-      const availableDonations =
-        data.filter(
-          (donation: any) =>
-            donation.status ===
-            "Available"
+        const data =
+          await getDonations();
+
+        /**
+         * Temporary development log.
+         *
+         * Useful for confirming that Firestore
+         * is returning the expected documents.
+         * This can be removed before final submission.
+         */
+        console.log(
+          "Donations loaded from Firestore:",
+          data
         );
 
-      setDonations(
-        availableDonations
-      );
-    } catch (error) {
-      console.error(
-        "Error loading donations:",
-        error
-      );
-    }
-  };
+        /**
+         * NGOs should only see donations
+         * that remain available.
+         */
+        const availableDonations =
+          data.filter(
+            (donation: any) =>
+              donation.status ===
+              DONATION_STATUS.AVAILABLE
+          );
+
+        console.log(
+          "Available donations:",
+          availableDonations
+        );
+
+        setDonations(
+          availableDonations
+        );
+
+      } catch (error) {
+        console.error(
+          "Error loading donations:",
+          error
+        );
+
+        /**
+         * Provide visible feedback instead of
+         * allowing the application to fail silently.
+         */
+        Alert.alert(
+          "Loading Error",
+          "Available donations could not be loaded. Please try again."
+        );
+
+      } finally {
+        setLoading(false);
+      }
+    }, []);
 
   /**
-   * Display a friendly message if no
-   * available donations exist.
+   * Refresh the Firestore data whenever
+   * this screen becomes active.
+   *
+   * Examples:
+   *
+   * Reserved -> donation disappears.
+   * Cancelled reservation -> donation reappears.
+   * Firestore changed to Available -> donation appears.
    */
-  if (donations.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.heading}>
-          Available Donations
-        </Text>
+  useFocusEffect(
+    useCallback(() => {
+      loadDonations();
+    }, [loadDonations])
+  );
 
-        <Text style={styles.emptyText}>
-          No available donations found.
+  /**
+   * Show loading feedback while Firestore
+   * data is being retrieved.
+   */
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator
+          size="large"
+          color={COLORS.primaryTeal}
+        />
+
+        <Text style={styles.loadingText}>
+          Loading available donations...
         </Text>
       </View>
     );
@@ -92,170 +160,276 @@ export default function AvailableDonations() {
 
   return (
     <View style={styles.container}>
+      {/* Screen heading */}
       <Text style={styles.heading}>
         Available Donations
       </Text>
 
-      <FlatList
-        data={donations}
-        keyExtractor={(item) =>
-          item.id
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            {/* Food Name */}
-            <Text style={styles.title}>
-              {item.foodName}
-            </Text>
+      {donations.length === 0 ? (
+        /**
+         * Friendly empty state.
+         *
+         * This is also useful for the
+         * Deliverable 5 edge-case test.
+         */
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>
+            No Donations Available
+          </Text>
 
-            {/* Category */}
-            <Text style={styles.text}>
-              Category: {item.category}
-            </Text>
+          <Text style={styles.emptyText}>
+            There are currently no available
+            donations. Please check again later.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={donations}
 
-            {/* Quantity */}
-            <Text style={styles.text}>
-              Quantity: {item.quantity}
-            </Text>
+          /**
+           * item.id represents the actual
+           * Firestore document ID.
+           */
+          keyExtractor={(item) =>
+            item.id
+          }
 
-            {/* Collection Location */}
-            <Text style={styles.text}>
-              Location:
-              {" "}
-              {item.collectionLocation}
-            </Text>
+          showsVerticalScrollIndicator={
+            false
+          }
 
-            {/* Navigate to Donation Details */}
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() =>
-                router.push({
-                  pathname:
-                    "/donation-details",
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              {/* Food Name */}
+              <Text style={styles.title}>
+                {item.foodName}
+              </Text>
 
-                  params: {
-                    documentId:
-                      item.id,
+              {/* Donation Category */}
+              <Text style={styles.text}>
+                Category:{" "}
+                {item.category}
+              </Text>
 
-                    donationId:
-                      item.donationId,
+              {/* Quantity Available */}
+              <Text style={styles.text}>
+                Quantity:{" "}
+                {item.quantity}
+              </Text>
 
-                    enterpriseId:
-                      item.enterpriseId,
+              {/* Collection Location */}
+              <Text style={styles.text}>
+                Location:{" "}
+                {item.collectionLocation}
+              </Text>
 
-                    foodName:
-                      item.foodName,
+              {/* Current Donation Status */}
+              <Text style={styles.status}>
+                Status:{" "}
+                {item.status}
+              </Text>
 
-                    category:
-                      item.category,
+              {/**
+               * Pass the selected donation's
+               * information to Donation Details.
+               *
+               * documentId:
+               * Actual Firestore document ID,
+               * e.g. "Donation Test 4".
+               *
+               * donationId:
+               * Servd business identifier,
+               * e.g. "DON04".
+               */}
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() =>
+                  router.push({
+                    pathname:
+                      "/donation-details",
 
-                    description:
-                      item.description,
+                    params: {
+                      documentId:
+                        item.id,
 
-                    quantity:
-                      item.quantity?.toString(),
+                      donationId:
+                        item.donationId,
 
-                    collectionLocation:
-                      item.collectionLocation,
+                      enterpriseId:
+                        item.enterpriseId,
 
-                    status:
-                      item.status,
-                  },
-                })
-              }
-            >
-              <Text
-                style={
-                  styles.buttonText
+                      foodName:
+                        item.foodName,
+
+                      category:
+                        item.category,
+
+                      description:
+                        item.description,
+
+                      quantity:
+                        item.quantity?.toString(),
+
+                      collectionLocation:
+                        item.collectionLocation,
+
+                      status:
+                        item.status,
+                    },
+                  })
                 }
               >
-                View Details
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+                <Text style={styles.buttonText}>
+                  View Details
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
 
-const styles =
-  StyleSheet.create({
+/**
+ * Styles follow the Servd design system:
+ *
+ * Lora:
+ * Major headings
+ *
+ * DM Sans:
+ * Body text, cards and buttons
+ */
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor:
+      COLORS.offWhite,
+    padding: SPACING.lg,
+  },
 
-    container: {
-      flex: 1,
-      backgroundColor:
-        COLORS.offWhite,
-      padding: SPACING.lg,
-    },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor:
+      COLORS.offWhite,
+    padding: SPACING.lg,
+  },
 
-    heading: {
-      ...TYPOGRAPHY.headingLarge,
+  heading: {
+    ...TYPOGRAPHY.headingLarge,
+    color:
+      COLORS.primaryTeal,
+    marginBottom:
+      SPACING.lg,
+  },
 
-      color:
-        COLORS.primaryTeal,
+  card: {
+    backgroundColor:
+      COLORS.white,
 
-      marginBottom:
-        SPACING.lg,
-    },
+    padding:
+      SPACING.lg,
 
-    card: {
-      backgroundColor:
-        COLORS.white,
+    borderRadius: 12,
 
-      padding:
-        SPACING.md,
+    marginBottom:
+      SPACING.md,
+  },
 
-      borderRadius: 12,
+  title: {
+    ...TYPOGRAPHY.headingSmall,
 
-      marginBottom:
-        SPACING.md,
-    },
+    color:
+      COLORS.primaryGreen,
 
-    title: {
-      ...TYPOGRAPHY.headingSmall,
+    marginBottom:
+      SPACING.sm,
+  },
 
-      color:
-        COLORS.primaryGreen,
+  text: {
+    ...TYPOGRAPHY.body,
 
-      marginBottom: 10,
-    },
+    color:
+      COLORS.black,
 
-    text: {
-      ...TYPOGRAPHY.body,
-      marginBottom: 5,
-    },
+    marginBottom:
+      SPACING.xs,
+  },
 
-    button: {
-      backgroundColor:
-        COLORS.primaryTeal,
+  status: {
+    ...TYPOGRAPHY.body,
 
-      padding:
-        SPACING.md,
+    color:
+      COLORS.primaryGreen,
 
-      borderRadius: 10,
+    fontWeight: "bold",
 
-      marginTop: 10,
-    },
+    marginTop:
+      SPACING.xs,
+  },
 
-    buttonText: {
-      ...TYPOGRAPHY.button,
+  button: {
+    backgroundColor:
+      COLORS.primaryTeal,
 
-      color:
-        COLORS.white,
+    padding:
+      SPACING.md,
 
-      textAlign:
-        "center",
-    },
+    borderRadius: 10,
 
-    emptyText: {
-      ...TYPOGRAPHY.body,
+    marginTop:
+      SPACING.md,
+  },
 
-      textAlign:
-        "center",
+  buttonText: {
+    ...TYPOGRAPHY.button,
 
-      marginTop:
-        SPACING.xl,
-    },
+    color:
+      COLORS.white,
 
-  });
+    textAlign: "center",
+  },
+
+  loadingText: {
+    ...TYPOGRAPHY.body,
+
+    color:
+      COLORS.black,
+
+    marginTop:
+      SPACING.md,
+  },
+
+  emptyContainer: {
+    backgroundColor:
+      COLORS.white,
+
+    padding:
+      SPACING.lg,
+
+    borderRadius: 12,
+
+    alignItems: "center",
+  },
+
+  emptyTitle: {
+    ...TYPOGRAPHY.headingSmall,
+
+    color:
+      COLORS.primaryTeal,
+
+    marginBottom:
+      SPACING.sm,
+  },
+
+  emptyText: {
+    ...TYPOGRAPHY.body,
+
+    color:
+      COLORS.black,
+
+    textAlign: "center",
+  },
+});
