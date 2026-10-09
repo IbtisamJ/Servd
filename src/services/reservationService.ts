@@ -1,147 +1,118 @@
 /**
  * Reservation Service
  *
- * Handles all Firestore operations related
- * to NGO donation reservations.
- *
- * Collection:
- * Reservations
+ * Handles Firestore operations relating to
+ * NGO donation reservations.
  */
 
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
+  getDoc,
   getDocs,
+  serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
 
 /**
- * Creates a new reservation.
+ * Creates a reservation for an available donation.
  *
- * Called when an NGO reserves a donation.
+ * The donation is checked before the reservation is
+ * created to reduce the possibility of reserving an
+ * unavailable donation.
  */
-export const createReservation = async (
-  reservation: any
+export const reserveDonationForNGO = async (
+  documentId: string,
+  donationId: string,
+  ngoId: string,
+  foodName: string,
+  collectionLocation: string
 ) => {
-  return await addDoc(
-    collection(db, "Reservations"),
-    reservation
+  // Reference the selected donation using its
+  // actual Firestore document ID.
+  const donationRef = doc(
+    db,
+    "Donations",
+    documentId
   );
+
+  // Retrieve the latest donation information.
+  const donationSnapshot =
+    await getDoc(donationRef);
+
+  if (!donationSnapshot.exists()) {
+    throw new Error(
+      "The selected donation could not be found."
+    );
+  }
+
+  const donationData =
+    donationSnapshot.data();
+
+  // Only Available donations may be reserved.
+  if (donationData.status !== "Available") {
+    throw new Error(
+      "This donation is no longer available."
+    );
+  }
+
+  // Create the reservation record.
+  const reservationRef = await addDoc(
+    collection(db, "Reservations"),
+    {
+      donationId,
+      donationDocumentId: documentId,
+      ngoId,
+      foodName,
+      collectionLocation,
+      status: "Active",
+      createdTimestamp: serverTimestamp(),
+      updatedTimestamp: serverTimestamp(),
+    }
+  );
+
+  // Change the donation lifecycle status.
+  await updateDoc(donationRef, {
+    status: "Reserved",
+  });
+
+  return reservationRef;
 };
 
 /**
- * Retrieves all reservations from Firestore.
- *
- * Used by the My Reservations screen.
+ * Retrieves reservation records from Firestore.
  */
 export const getReservations = async () => {
   const snapshot = await getDocs(
     collection(db, "Reservations")
   );
 
-  return snapshot.docs.map((document) => ({
-    id: document.id,
-    ...document.data(),
-  }));
+  return snapshot.docs.map(
+    (reservationDocument) => ({
+      id: reservationDocument.id,
+      ...reservationDocument.data(),
+    })
+  );
 };
 
 /**
- * Updates a reservation status.
- *
- * Possible statuses:
- * - Active
- * - Collected
- * - Cancelled
+ * Updates an existing reservation status.
  */
 export const updateReservationStatus = async (
-  reservationId: string,
+  reservationDocumentId: string,
   status: string
 ) => {
   const reservationRef = doc(
     db,
     "Reservations",
-    reservationId
+    reservationDocumentId
   );
 
-  return await updateDoc(
-    reservationRef,
-    {
-      status,
-      updatedTimestamp: new Date(),
-    }
-  );
+  await updateDoc(reservationRef, {
+    status,
+    updatedTimestamp: serverTimestamp(),
+  });
 };
-
-/**
- * Marks a reservation as collected.
- */
-export const markReservationCollected =
-  async (
-    reservationId: string
-  ) => {
-
-    const reservationRef = doc(
-      db,
-      "Reservations",
-      reservationId
-    );
-
-    return await updateDoc(
-      reservationRef,
-      {
-        status: "Collected",
-        updatedTimestamp:
-          new Date(),
-      }
-    );
-  };
-
-/**
- * Cancels a reservation.
- */
-export const cancelReservation =
-  async (
-    reservationId: string
-  ) => {
-
-    const reservationRef = doc(
-      db,
-      "Reservations",
-      reservationId
-    );
-
-    return await updateDoc(
-      reservationRef,
-      {
-        status: "Cancelled",
-        updatedTimestamp:
-          new Date(),
-      }
-    );
-  };
-
-/**
- * Permanently deletes a reservation.
- *
- * Mostly used for testing or
- * administrator functionality.
- */
-export const deleteReservation =
-  async (
-    reservationId: string
-  ) => {
-
-    const reservationRef = doc(
-      db,
-      "Reservations",
-      reservationId
-    );
-
-    return await deleteDoc(
-      reservationRef
-    );
-  };

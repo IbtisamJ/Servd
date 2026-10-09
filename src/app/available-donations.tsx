@@ -134,8 +134,14 @@ export default function AvailableDonations() {
                     "/donation-details",
 
                   params: {
+                    documentId:
+                      item.id,
+
                     donationId:
                       item.donationId,
+
+                    enterpriseId:
+                      item.enterpriseId,
 
                     foodName:
                       item.foodName,

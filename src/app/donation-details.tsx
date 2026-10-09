@@ -1,14 +1,18 @@
 /**
  * Donation Details Screen
  *
- * Displays detailed information about a
- * selected donation.
+ * Displays information for the donation selected
+ * on the Available Donations screen.
  *
- * Allows NGOs to view donation information
- * before reserving the donation.
+ * An NGO can also reserve an available donation.
  */
 
 import {
+  useState,
+} from "react";
+
+import {
+  ActivityIndicator,
   Alert,
   StyleSheet,
   Text,
@@ -22,6 +26,10 @@ import {
 } from "expo-router";
 
 import {
+  reserveDonationForNGO,
+} from "../services/reservationService";
+
+import {
   COLORS,
   SPACING,
   TYPOGRAPHY,
@@ -29,10 +37,11 @@ import {
 
 export default function DonationDetails() {
   /**
-   * Retrieve donation information passed
-   * from the Available Donations screen.
+   * Donation information received through
+   * Expo Router from Available Donations.
    */
   const {
+    documentId,
     donationId,
     foodName,
     category,
@@ -40,39 +49,112 @@ export default function DonationDetails() {
     quantity,
     collectionLocation,
     status,
-  } = useLocalSearchParams();
+  } = useLocalSearchParams<{
+    documentId: string;
+    donationId: string;
+    foodName: string;
+    category: string;
+    description: string;
+    quantity: string;
+    collectionLocation: string;
+    status: string;
+  }>();
+
+  // Prevents multiple button presses while
+  // the Firestore operation is running.
+  const [isReserving, setIsReserving] =
+    useState(false);
 
   /**
-   * Handles reservation action.
+   * Reserves the selected donation.
    *
-   * This is currently a placeholder implementation.
-   * Later this can:
-   * 1. Create a reservation document.
-   * 2. Update the donation status to Reserved.
-   * 3. Navigate to My Reservations.
+   * A Reservation document is created and
+   * the corresponding Donation becomes Reserved.
    */
-  const handleReserveDonation = () => {
-    Alert.alert(
-      "Reservation Successful",
-      `${foodName} has been reserved.`
-    );
+  const handleReserveDonation =
+    async () => {
+      if (!documentId || !donationId) {
+        Alert.alert(
+          "Reservation Error",
+          "Donation information is incomplete."
+        );
 
-    router.push("/my-reservations");
-  };
+        return;
+      }
+
+      if (status !== "Available") {
+        Alert.alert(
+          "Unavailable Donation",
+          "This donation is no longer available for reservation."
+        );
+
+        return;
+      }
+
+      try {
+        setIsReserving(true);
+
+        /**
+         * Temporary NGO identifier for development.
+         *
+         * Replace this with the authenticated NGO's
+         * identifier when the team integrates
+         * authentication/user profiles.
+         */
+        const ngoId = "NGO001";
+
+        await reserveDonationForNGO(
+          documentId,
+          donationId,
+          ngoId,
+          foodName ?? "",
+          collectionLocation ?? ""
+        );
+
+        Alert.alert(
+          "Reservation Successful",
+          `${foodName} has been reserved successfully.`,
+          [
+            {
+              text: "View Reservations",
+              onPress: () =>
+                router.replace(
+                  "/my-reservations"
+                ),
+            },
+          ]
+        );
+      } catch (error) {
+        console.error(
+          "Reservation error:",
+          error
+        );
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The reservation could not be completed.";
+
+        Alert.alert(
+          "Reservation Failed",
+          message
+        );
+      } finally {
+        setIsReserving(false);
+      }
+    };
 
   return (
     <View style={styles.container}>
-      {/* Screen Heading */}
       <Text style={styles.heading}>
         Donation Details
       </Text>
 
-      {/* Donation Information Card */}
+      {/* Selected donation information */}
       <View style={styles.card}>
         <Text style={styles.label}>
           Food Name
         </Text>
-
         <Text style={styles.value}>
           {foodName}
         </Text>
@@ -80,7 +162,6 @@ export default function DonationDetails() {
         <Text style={styles.label}>
           Category
         </Text>
-
         <Text style={styles.value}>
           {category}
         </Text>
@@ -88,7 +169,6 @@ export default function DonationDetails() {
         <Text style={styles.label}>
           Description
         </Text>
-
         <Text style={styles.value}>
           {description}
         </Text>
@@ -96,7 +176,6 @@ export default function DonationDetails() {
         <Text style={styles.label}>
           Quantity
         </Text>
-
         <Text style={styles.value}>
           {quantity}
         </Text>
@@ -104,7 +183,6 @@ export default function DonationDetails() {
         <Text style={styles.label}>
           Collection Location
         </Text>
-
         <Text style={styles.value}>
           {collectionLocation}
         </Text>
@@ -112,7 +190,6 @@ export default function DonationDetails() {
         <Text style={styles.label}>
           Donation ID
         </Text>
-
         <Text style={styles.value}>
           {donationId}
         </Text>
@@ -120,20 +197,30 @@ export default function DonationDetails() {
         <Text style={styles.label}>
           Status
         </Text>
-
         <Text style={styles.status}>
           {status}
         </Text>
       </View>
 
-      {/* Reserve Donation Button */}
+      {/* Reservation action */}
       <TouchableOpacity
-        style={styles.button}
+        style={[
+          styles.button,
+          isReserving &&
+            styles.disabledButton,
+        ]}
+        disabled={isReserving}
         onPress={handleReserveDonation}
       >
-        <Text style={styles.buttonText}>
-          Reserve Donation
-        </Text>
+        {isReserving ? (
+          <ActivityIndicator
+            color={COLORS.white}
+          />
+        ) : (
+          <Text style={styles.buttonText}>
+            Reserve Donation
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -176,10 +263,17 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    backgroundColor: COLORS.primaryTeal,
+    backgroundColor:
+      COLORS.primaryTeal,
     padding: SPACING.md,
     borderRadius: 10,
     marginTop: SPACING.lg,
+    minHeight: 52,
+    justifyContent: "center",
+  },
+
+  disabledButton: {
+    opacity: 0.65,
   },
 
   buttonText: {
