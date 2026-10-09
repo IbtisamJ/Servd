@@ -1,8 +1,11 @@
 /**
  * Available Donations Screen
  *
- * Displays all donations that are
- * currently marked as Available.
+ * Displays all donations that are currently
+ * available for NGOs to reserve.
+ *
+ * Data is retrieved from the Firestore
+ * Donations collection.
  */
 
 import {
@@ -31,27 +34,23 @@ import {
 } from "../theme";
 
 export default function AvailableDonations() {
-
   const [donations, setDonations] =
     useState<any[]>([]);
 
   /**
-   * Load donations when
-   * screen opens.
+   * Load donations when the screen opens.
    */
   useEffect(() => {
     loadDonations();
   }, []);
 
   /**
-   * Retrieves donations
-   * from Firestore and
-   * displays only available items.
+   * Retrieves donation data from Firestore.
+   * Only donations with status "Available"
+   * are displayed.
    */
   const loadDonations = async () => {
-
     try {
-
       const data =
         await getDonations();
 
@@ -65,57 +64,98 @@ export default function AvailableDonations() {
       setDonations(
         availableDonations
       );
-
     } catch (error) {
-
       console.error(
         "Error loading donations:",
         error
       );
-
     }
   };
 
+  /**
+   * Display a friendly message if no
+   * available donations exist.
+   */
+  if (donations.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.heading}>
+          Available Donations
+        </Text>
+
+        <Text style={styles.emptyText}>
+          No available donations found.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-
       <Text style={styles.heading}>
         Available Donations
       </Text>
 
       <FlatList
         data={donations}
-
         keyExtractor={(item) =>
           item.id
         }
-
         renderItem={({ item }) => (
-
           <View style={styles.card}>
-
+            {/* Food Name */}
             <Text style={styles.title}>
               {item.foodName}
             </Text>
 
+            {/* Category */}
             <Text style={styles.text}>
               Category: {item.category}
             </Text>
 
+            {/* Quantity */}
             <Text style={styles.text}>
               Quantity: {item.quantity}
             </Text>
 
+            {/* Collection Location */}
             <Text style={styles.text}>
-              Location: {item.collectionLocation}
+              Location:
+              {" "}
+              {item.collectionLocation}
             </Text>
 
+            {/* Navigate to Donation Details */}
             <TouchableOpacity
               style={styles.button}
               onPress={() =>
-                router.push(
-                  "/donation-details"
-                )
+                router.push({
+                  pathname:
+                    "/donation-details",
+
+                  params: {
+                    donationId:
+                      item.donationId,
+
+                    foodName:
+                      item.foodName,
+
+                    category:
+                      item.category,
+
+                    description:
+                      item.description,
+
+                    quantity:
+                      item.quantity?.toString(),
+
+                    collectionLocation:
+                      item.collectionLocation,
+
+                    status:
+                      item.status,
+                  },
+                })
               }
             >
               <Text
@@ -126,12 +166,9 @@ export default function AvailableDonations() {
                 View Details
               </Text>
             </TouchableOpacity>
-
           </View>
-
         )}
       />
-
     </View>
   );
 }
@@ -187,7 +224,8 @@ const styles =
       backgroundColor:
         COLORS.primaryTeal,
 
-      padding: SPACING.md,
+      padding:
+        SPACING.md,
 
       borderRadius: 10,
 
@@ -195,13 +233,23 @@ const styles =
     },
 
     buttonText: {
+      ...TYPOGRAPHY.button,
+
       color:
         COLORS.white,
 
       textAlign:
         "center",
+    },
 
-      ...TYPOGRAPHY.button,
+    emptyText: {
+      ...TYPOGRAPHY.body,
+
+      textAlign:
+        "center",
+
+      marginTop:
+        SPACING.xl,
     },
 
   });

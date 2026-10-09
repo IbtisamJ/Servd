@@ -1,8 +1,11 @@
 /**
  * Donation Details Screen
  *
- * Displays detailed donation information
- * and allows an NGO to reserve a donation.
+ * Displays detailed information about a
+ * selected donation.
+ *
+ * Allows NGOs to view donation information
+ * before reserving the donation.
  */
 
 import {
@@ -13,7 +16,10 @@ import {
   View,
 } from "react-native";
 
-import { router } from "expo-router";
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
 
 import {
   COLORS,
@@ -22,20 +28,33 @@ import {
 } from "../theme";
 
 export default function DonationDetails() {
-  const donation = {
-    foodName: "Fresh Bread",
-    category: "Bakery",
-    description:
-      "Fresh bread available for collection.",
-    quantity: 20,
-    collectionLocation: "Grassy Park",
-    status: "Available",
-  };
+  /**
+   * Retrieve donation information passed
+   * from the Available Donations screen.
+   */
+  const {
+    donationId,
+    foodName,
+    category,
+    description,
+    quantity,
+    collectionLocation,
+    status,
+  } = useLocalSearchParams();
 
+  /**
+   * Handles reservation action.
+   *
+   * This is currently a placeholder implementation.
+   * Later this can:
+   * 1. Create a reservation document.
+   * 2. Update the donation status to Reserved.
+   * 3. Navigate to My Reservations.
+   */
   const handleReserveDonation = () => {
     Alert.alert(
-      "Success",
-      "Donation reserved successfully."
+      "Reservation Successful",
+      `${foodName} has been reserved.`
     );
 
     router.push("/my-reservations");
@@ -43,54 +62,71 @@ export default function DonationDetails() {
 
   return (
     <View style={styles.container}>
+      {/* Screen Heading */}
       <Text style={styles.heading}>
         Donation Details
       </Text>
 
+      {/* Donation Information Card */}
       <View style={styles.card}>
         <Text style={styles.label}>
           Food Name
         </Text>
+
         <Text style={styles.value}>
-          {donation.foodName}
+          {foodName}
         </Text>
 
         <Text style={styles.label}>
           Category
         </Text>
+
         <Text style={styles.value}>
-          {donation.category}
+          {category}
         </Text>
 
         <Text style={styles.label}>
           Description
         </Text>
+
         <Text style={styles.value}>
-          {donation.description}
+          {description}
         </Text>
 
         <Text style={styles.label}>
           Quantity
         </Text>
+
         <Text style={styles.value}>
-          {donation.quantity}
+          {quantity}
         </Text>
 
         <Text style={styles.label}>
           Collection Location
         </Text>
+
         <Text style={styles.value}>
-          {donation.collectionLocation}
+          {collectionLocation}
+        </Text>
+
+        <Text style={styles.label}>
+          Donation ID
+        </Text>
+
+        <Text style={styles.value}>
+          {donationId}
         </Text>
 
         <Text style={styles.label}>
           Status
         </Text>
+
         <Text style={styles.status}>
-          {donation.status}
+          {status}
         </Text>
       </View>
 
+      {/* Reserve Donation Button */}
       <TouchableOpacity
         style={styles.button}
         onPress={handleReserveDonation}
@@ -125,16 +161,18 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.body,
     fontWeight: "bold",
-    marginTop: 10,
+    marginTop: 12,
   },
 
   value: {
     ...TYPOGRAPHY.body,
+    marginTop: 4,
   },
 
   status: {
     ...TYPOGRAPHY.body,
     color: COLORS.primaryGreen,
+    marginTop: 4,
   },
 
   button: {
