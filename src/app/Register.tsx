@@ -7,7 +7,10 @@
  * - Displays success screen with pending status
  */
 
-import React, { useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -20,13 +23,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
 
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { auth, db } from "../config/firebase";
 import { Colors } from "../constants/theme";
-import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { styles } from "../styles/Register.styles";
 
 type AccountRole = "NGO" | "Enterprise";
