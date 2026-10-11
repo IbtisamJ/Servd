@@ -145,7 +145,7 @@ export default function Login() {
             "Your account is not approved for access. Please contact support.",
           );
         }
-      } else if (role === "enterprise") {
+      } else if (role === "foodEnterprise") {
         // Route active food enterprise accounts.
 
         if (accountStatus !== "approved" && accountStatus !== "active") {
