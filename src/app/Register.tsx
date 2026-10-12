@@ -8,9 +8,8 @@
  */
 
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
 import { useMemo, useState } from "react";
+import { registerUser, getAuthErrorMessage } from "../services/authService";
 import {
   ActivityIndicator,
   Image,
@@ -25,7 +24,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
-import { auth, db } from "../config/firebase";
 import { Colors } from "../constants/theme";
 import { styles } from "../styles/Register.styles";
 
@@ -243,87 +241,25 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      // Create the Firebase Authentication account
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        normalizedEmail,
-        password,
-      );
-
-      const user = userCredential.user;
-      const createdTimestamp = new Date().toISOString();
-
-      // Save the shared account details
-      await setDoc(doc(db, "Users", user.uid), {
-        userId: user.uid,
+      await registerUser({
         name: name.trim(),
-        email: normalizedEmail,
+        email: email.trim().toLowerCase(),
+        password,
         role: role === "NGO" ? "ngo" : "enterprise",
-        accountStatus: "Pending",
-        createdTimestamp,
+        contactInfo:
+          role === "NGO" ? ngoContact.trim() : enterpriseContact.trim(),
+        organisationName: role === "NGO" ? ngoName.trim() : undefined,
+        npoNumber: role === "NGO" ? npoNumber.trim() : undefined,
+        enterpriseName:
+          role === "Enterprise" ? enterpriseName.trim() : undefined,
+        registrationNumber:
+          role === "Enterprise" ? registrationNumber.trim() : undefined,
       });
 
-      if (role === "NGO") {
-        // Save NGO-specific details
-        await setDoc(doc(db, "NGOs", user.uid), {
-          userId: user.uid,
-          organisationName: ngoName.trim(),
-          npoNumber: npoNumber.trim(),
-          contactInformation: ngoContact.trim(),
-          verificationStatus: "Pending",
-          createdTimestamp,
-        });
-      } else {
-        // Save food enterprise-specific details
-        await setDoc(doc(db, "Food Enterprises", user.uid), {
-          userID: user.uid,
-          registrationNumber: registrationNumber.trim(),
-          enterpriseName: enterpriseName.trim(),
-          createdTimestamp,
-          contactInformation: enterpriseContact.trim(),
-        });
-      }
-
       setSuccess(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration error:", error);
-
-      switch (error?.code) {
-        case "auth/email-already-in-use":
-          setFormError(
-            "An account with this email already exists. Please log in instead.",
-          );
-          break;
-
-        case "auth/invalid-email":
-          setFormError("Please enter a valid email address.");
-          break;
-
-        case "auth/weak-password":
-          setFormError(
-            "Please choose a stronger password with at least 8 characters.",
-          );
-          break;
-
-        case "auth/network-request-failed":
-          setFormError(
-            "A network error occurred. Check your internet connection and try again.",
-          );
-          break;
-
-        case "permission-denied":
-          setFormError(
-            "Your account could not be saved because of a database permission issue. Please contact your administrator.",
-          );
-          break;
-
-        default:
-          setFormError(
-            "We couldn't complete your registration. Please try again.",
-          );
-      }
+      setFormError(getAuthErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
