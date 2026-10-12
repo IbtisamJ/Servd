@@ -9,7 +9,6 @@
 
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useRef, useState } from "react";
 import {
@@ -22,8 +21,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { auth, db } from "../config/firebase";
+import { db } from "../config/firebase";
+import { COLLECTIONS, NGO_STATUS, ROLES } from "../constants/roles";
 import { Colors } from "../constants/theme";
+import {
+  getAuthErrorMessage,
+  loginUser,
+  logoutUser,
+} from "../services/authService";
 
 export default function Login() {
   const router = useRouter();
@@ -61,63 +66,23 @@ export default function Login() {
     });
 
   const handleLogin = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
-
-    // Basic input validation
-    if (!trimmedEmail) {
-      setError("Please enter your email address.");
-      return;
-    }
-
-    if (!password) {
-      setError("Please enter your password.");
-      return;
-    }
-
     setError("");
+
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Authenticate the user
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        trimmedEmail,
-        password,
-      );
+      const result = await loginUser(email, password);
 
-      // Retrieve main user record from Firestore
-      const user = userCredential.user;
-
-      // Retrieve the main user record
-      const userDoc = await getDoc(doc(db, "Users", user.uid));
-
-      if (!userDoc.exists()) {
-        await signOut(auth);
-        setError(
-          "Your account details could not be found. Please contact support.",
-        );
-        return;
-      }
-
-      const userData = userDoc.data();
-      const role = String(userData.role ?? "").toLowerCase();
-      const accountStatus = String(userData.accountStatus ?? "").toLowerCase();
-
-      // Block suspended/disabled accounts
-      if (accountStatus === "suspended" || accountStatus === "disabled") {
-        await signOut(auth);
-        setError(
-          "Your account has been suspended or disabled. Please contact support.",
-        );
-        return;
-      }
-
-      if (role === "ngo") {
-        // Check NGO verification status
-        const ngoDoc = await getDoc(doc(db, "NGOs", user.uid));
+      if (result.role === ROLES.NGO) {
+        const ngoDoc = await getDoc(doc(db, COLLECTIONS.NGOS, result.uid));
 
         if (!ngoDoc.exists()) {
-          await signOut(auth);
+          await logoutUser();
           setError(
             "Your organisation details could not be found. Please contact support.",
           );
@@ -128,79 +93,38 @@ export default function Login() {
           ngoDoc.data().verificationStatus ?? "",
         ).toLowerCase();
 
-        if (verificationStatus === "approved") {
-          await playTruckAnimation();
-          router.replace("/ngo-dashboard");
-        } else if (verificationStatus === "pending") {
+        if (verificationStatus === NGO_STATUS.PENDING) {
           await playTruckAnimation();
           router.replace("/NGOWelcome");
-        } else if (verificationStatus === "rejected") {
-          await signOut(auth);
+        } else if (verificationStatus === NGO_STATUS.APPROVED) {
+          await playTruckAnimation();
+          router.replace("/ngo-dashboard");
+        } else if (verificationStatus === NGO_STATUS.REJECTED) {
+          await logoutUser();
           setError(
             "Your NGO registration was not approved. Please contact support.",
           );
         } else {
-          await signOut(auth);
+          await logoutUser();
           setError(
             "Your account is not approved for access. Please contact support.",
           );
         }
-      } else if (role === "foodEnterprise") {
-        // Route active food enterprise accounts.
-
-        if (accountStatus !== "approved" && accountStatus !== "active") {
-          await signOut(auth);
-          setError("Your enterprise account is not yet approved for access.");
-          return;
-        }
-
+      } else if (result.role === ROLES.ENTERPRISE) {
         await playTruckAnimation();
         router.replace("/EnterpriseDashboard");
+      } else if (result.role === ROLES.ADMIN) {
+        await logoutUser();
+        setError("Administrator login is not available in this build yet.");
       } else {
-        await signOut(auth);
+        await logoutUser();
         setError(
           "Your account role could not be identified. Please contact support.",
         );
       }
-    } catch (err: any) {
-      console.error("Login error:", err.code ?? err.message);
-
-      // Handle common authentication and connection errors
-      switch (err.code) {
-        case "auth/invalid-credential":
-        case "auth/wrong-password":
-        case "auth/user-not-found":
-          setError("Incorrect email or password. Please try again.");
-          break;
-
-        case "auth/invalid-email":
-          setError("Please enter a valid email address.");
-          break;
-
-        case "auth/user-disabled":
-          setError("This account has been disabled.");
-          break;
-
-        case "auth/too-many-requests":
-          setError("Too many login attempts. Please wait and try again.");
-          break;
-
-        case "auth/network-request-failed":
-        case "unavailable":
-          setError(
-            "Unable to connect. Check your internet connection and try again.",
-          );
-          break;
-
-        case "permission-denied":
-          setError(
-            "We couldn't access your account details. Please try again or contact support.",
-          );
-          break;
-
-        default:
-          setError("Something went wrong while logging in. Please try again.");
-      }
+    } catch (error: unknown) {
+      console.error("Login error:", error);
+      setError(getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
