@@ -30,7 +30,8 @@
           "image": "./assets/images/Servd_Logo.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
