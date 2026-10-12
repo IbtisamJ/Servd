@@ -28,6 +28,7 @@ type RegisterInput = {
   npoNumber?: string;
   // Enterprise only
   enterpriseName?: string;
+  registrationNumber?: string;
 };
 
 // ---------- Our own errors ----------
@@ -112,6 +113,7 @@ export async function registerUser(input: RegisterInput) {
         enterpriseName: (input.enterpriseName ?? "").trim(),
         contactInfo: input.contactInfo.trim(),
         createdAt: serverTimestamp(),
+        registrationNumber: (input.registrationNumber ?? "").trim(),
       });
     }
 
