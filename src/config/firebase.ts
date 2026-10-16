@@ -1,6 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import * as FirebaseAuth from "firebase/auth";
+import {
+  Auth,
+  getAuth,
+  // @ts-ignore - Metro bundler resolves this for React Native, but standard web typings flag it
+  getReactNativePersistence,
+  initializeAuth,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -12,18 +18,19 @@ const firebaseConfig = {
   appId: "1:91852787330:web:c7c59db9f19ac907186e9b",
 };
 
-const app = FirebaseAuth ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()) : getApp();
+// Initialize the Firebase App singleton
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-let authInstance: any;
+// Initialize Auth with AsyncStorage persistence, safely handling fast-refresh reloads
+let auth: Auth;
 try {
-  const getPersistence = (FirebaseAuth as any).getReactNativePersistence;
-  const persistence = typeof getPersistence === "function" ? getPersistence(AsyncStorage) : undefined;
-  authInstance = (FirebaseAuth as any).initializeAuth(app, { persistence });
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
 } catch {
-  authInstance = FirebaseAuth.getAuth(app);
+  auth = getAuth(app);
 }
 
-export const auth = authInstance;
 export const db = getFirestore(app);
-
+export { auth };
 export default app;
