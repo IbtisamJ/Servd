@@ -30,9 +30,7 @@ import {
   TYPOGRAPHY,
 } from "../theme";
 
-import {
-  NGO_STATUS,
-} from "../constants/ngoStatus";
+import { NGO_STATUS } from "../constants/roles";
 
 export default function NgoVerification() {
   /**

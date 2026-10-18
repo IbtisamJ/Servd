@@ -9,10 +9,7 @@
  * Firestore updates are reflected immediately.
  */
 
-import {
-  useCallback,
-  useState,
-} from "react";
+import { useCallback, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -25,99 +22,68 @@ import {
   View,
 } from "react-native";
 
-import {
-  router,
-  useFocusEffect,
-} from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
-import {
-  getDonations,
-} from "../services/donationService";
+import { getDonations } from "../services/donationService";
 
-import {
-  DONATION_STATUS,
-} from "../constants/donationStatus";
+import { DONATION_STATUS } from "../constants/roles";
 
-import {
-  COLORS,
-  SPACING,
-  TYPOGRAPHY,
-} from "../theme";
+import { COLORS, SPACING, TYPOGRAPHY } from "../theme";
 
 export default function AvailableDonations() {
   /**
    * Stores donations that are currently
    * available for reservation.
    */
-  const [donations, setDonations] =
-    useState<any[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
 
   /**
    * Controls the loading indicator while
    * Firestore data is being retrieved.
    */
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
   /**
    * Retrieves all donation records from Firestore
    * and filters the results so that only donations
    * with an Available status are displayed.
    */
-  const loadDonations =
-    useCallback(async () => {
-      try {
-        setLoading(true);
+  const loadDonations = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        const data =
-          await getDonations();
+      const data = await getDonations();
 
-        /**
-         * Temporary development log.
-         *
-         * Useful while testing Firestore.
-         * This can be removed before submission.
-         */
-        console.log(
-          "Donations loaded from Firestore:",
-          data
-        );
+      /**
+       * Temporary development log.
+       *
+       * Useful while testing Firestore.
+       * This can be removed before submission.
+       */
+      console.log("Donations loaded from Firestore:", data);
 
-        /**
-         * NGOs should only see donations
-         * that remain available.
-         */
-        const availableDonations =
-          data.filter(
-            (donation: any) =>
-              donation.status ===
-              DONATION_STATUS.AVAILABLE
-          );
+      /**
+       * NGOs should only see donations
+       * that remain available.
+       */
+      const availableDonations = data.filter(
+        (donation: any) => donation.status === DONATION_STATUS.AVAILABLE,
+      );
 
-        console.log(
-          "Available donations:",
-          availableDonations
-        );
+      console.log("Available donations:", availableDonations);
 
-        setDonations(
-          availableDonations
-        );
+      setDonations(availableDonations);
+    } catch (error) {
+      console.error("Error loading donations:", error);
 
-      } catch (error) {
-        console.error(
-          "Error loading donations:",
-          error
-        );
-
-        Alert.alert(
-          "Loading Error",
-          "Available donations could not be loaded. Please try again."
-        );
-
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+      Alert.alert(
+        "Loading Error",
+        "Available donations could not be loaded. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   /**
    * Refresh donation data whenever this
@@ -134,7 +100,7 @@ export default function AvailableDonations() {
   useFocusEffect(
     useCallback(() => {
       loadDonations();
-    }, [loadDonations])
+    }, [loadDonations]),
   );
 
   /**
@@ -144,14 +110,9 @@ export default function AvailableDonations() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator
-            size="large"
-            color={COLORS.primaryTeal}
-          />
+          <ActivityIndicator size="large" color={COLORS.primaryTeal} />
 
-          <Text style={styles.loadingText}>
-            Loading available donations...
-          </Text>
+          <Text style={styles.loadingText}>Loading available donations...</Text>
         </View>
       </SafeAreaView>
     );
@@ -160,7 +121,6 @@ export default function AvailableDonations() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-
         {/*
          * Back Button
          *
@@ -169,20 +129,14 @@ export default function AvailableDonations() {
          */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() =>
-            router.back()
-          }
+          onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Text style={styles.backButtonText}>
-            ← Back
-          </Text>
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
 
         {/* Screen heading */}
-        <Text style={styles.heading}>
-          Available Donations
-        </Text>
+        <Text style={styles.heading}>Available Donations</Text>
 
         {donations.length === 0 ? (
           /**
@@ -190,76 +144,53 @@ export default function AvailableDonations() {
            * there are no Available donations.
            */
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>
-              No Donations Available
-            </Text>
+            <Text style={styles.emptyTitle}>No Donations Available</Text>
 
             <Text style={styles.emptyText}>
-              There are currently no available
-              donations. Please check again later.
+              There are currently no available donations. Please check again
+              later.
             </Text>
           </View>
         ) : (
           <FlatList
             data={donations}
-
             /**
              * Actual Firestore document ID
              * provides a unique list key.
              */
-            keyExtractor={(item) =>
-              item.id
-            }
-
+            keyExtractor={(item) => item.id}
             /**
              * Allows the list to use the remaining
              * available mobile-screen space.
              */
             style={styles.list}
-
-            contentContainerStyle={
-              styles.listContent
-            }
-
-            showsVerticalScrollIndicator={
-              false
-            }
-
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <View style={styles.card}>
-
                 {/* Donation food name */}
-                <Text style={styles.title}>
-                  {item.foodName}
-                </Text>
+                <Text style={styles.title}>{item.foodName}</Text>
 
                 {/* Donation category */}
                 <Text style={styles.text}>
-                  Category:{" "}
-                  {item.category ||
-                    "Not specified"}
+                  Category: {item.category || "Not specified"}
                 </Text>
 
                 {/* Quantity available */}
                 <Text style={styles.text}>
-                  Quantity:{" "}
-                  {item.quantity ??
-                    "Not specified"}
+                  Quantity: {item.quantity ?? "Not specified"}
                 </Text>
 
                 {/* Collection location */}
                 <Text style={styles.text}>
-                  Location:{" "}
-                  {item.collectionLocation ||
-                    "Not specified"}
+                  Location: {item.collectionLocation || "Not specified"}
                 </Text>
 
                 {/* Current donation status */}
                 <Text style={styles.status}>
                   Status:{" "}
-                  {item.status}
+                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                 </Text>
-
                 {/**
                  * Opens Donation Details and passes
                  * information about the selected
@@ -270,53 +201,24 @@ export default function AvailableDonations() {
                   activeOpacity={0.8}
                   onPress={() =>
                     router.push({
-                      pathname:
-                        "/donation-details",
-
+                      pathname: "/donation-details",
                       params: {
-                        /**
-                         * Actual Firestore
-                         * document identifier.
-                         */
-                        documentId:
-                          item.id,
-
-                        /**
-                         * Servd logical
-                         * donation identifier.
-                         */
-                        donationId:
-                          item.donationId,
-
-                        enterpriseId:
-                          item.enterpriseId,
-
-                        foodName:
-                          item.foodName,
-
-                        category:
-                          item.category,
-
-                        description:
-                          item.description,
-
-                        quantity:
-                          item.quantity?.toString(),
-
-                        collectionLocation:
-                          item.collectionLocation,
-
+                        documentId: item.id,
+                        donationId: item.donationId,
+                        enterpriseId: item.enterpriseId,
+                        foodName: item.foodName,
+                        category: item.category,
+                        description: item.description,
+                        quantity: item.quantity?.toString(),
+                        collectionLocation: item.collectionLocation,
                         status:
-                          item.status,
+                          item.status as (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS],
                       },
                     })
                   }
                 >
-                  <Text style={styles.buttonText}>
-                    View Details
-                  </Text>
+                  <Text style={styles.buttonText}>View Details</Text>
                 </TouchableOpacity>
-
               </View>
             )}
           />
@@ -341,8 +243,7 @@ const styles = StyleSheet.create({
    */
   safeArea: {
     flex: 1,
-    backgroundColor:
-      COLORS.offWhite,
+    backgroundColor: COLORS.offWhite,
   },
 
   /**
@@ -354,14 +255,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: "100%",
-    backgroundColor:
-      COLORS.offWhite,
+    backgroundColor: COLORS.offWhite,
 
-    paddingHorizontal:
-      SPACING.lg,
+    paddingHorizontal: SPACING.lg,
 
-    paddingTop:
-      SPACING.sm,
+    paddingTop: SPACING.sm,
   },
 
   /**
@@ -370,41 +268,32 @@ const styles = StyleSheet.create({
   centerContainer: {
     flex: 1,
 
-    justifyContent:
-      "center",
+    justifyContent: "center",
 
-    alignItems:
-      "center",
+    alignItems: "center",
 
-    paddingHorizontal:
-      SPACING.lg,
+    paddingHorizontal: SPACING.lg,
   },
 
   /**
    * Back navigation.
    */
   backButton: {
-    alignSelf:
-      "flex-start",
+    alignSelf: "flex-start",
 
-    paddingVertical:
-      SPACING.sm,
+    paddingVertical: SPACING.sm,
 
-    paddingRight:
-      SPACING.md,
+    paddingRight: SPACING.md,
 
-    marginBottom:
-      SPACING.xs,
+    marginBottom: SPACING.xs,
   },
 
   backButtonText: {
     ...TYPOGRAPHY.body,
 
-    color:
-      COLORS.primaryTeal,
+    color: COLORS.primaryTeal,
 
-    fontWeight:
-      "600",
+    fontWeight: "600",
   },
 
   /**
@@ -413,11 +302,9 @@ const styles = StyleSheet.create({
   heading: {
     ...TYPOGRAPHY.headingLarge,
 
-    color:
-      COLORS.primaryTeal,
+    color: COLORS.primaryTeal,
 
-    marginBottom:
-      SPACING.lg,
+    marginBottom: SPACING.lg,
   },
 
   /**
@@ -434,8 +321,7 @@ const styles = StyleSheet.create({
    * from sitting against the bottom edge.
    */
   listContent: {
-    paddingBottom:
-      SPACING.xl,
+    paddingBottom: SPACING.xl,
   },
 
   /**
@@ -447,16 +333,13 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
 
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
 
-    padding:
-      SPACING.lg,
+    padding: SPACING.lg,
 
     borderRadius: 12,
 
-    marginBottom:
-      SPACING.md,
+    marginBottom: SPACING.md,
 
     /**
      * Subtle Android elevation.
@@ -466,29 +349,24 @@ const styles = StyleSheet.create({
     /**
      * iOS shadow properties.
      */
-    shadowColor:
-      "#000000",
+    shadowColor: "#000000",
 
     shadowOffset: {
       width: 0,
       height: 1,
     },
 
-    shadowOpacity:
-      0.08,
+    shadowOpacity: 0.08,
 
-    shadowRadius:
-      3,
+    shadowRadius: 3,
   },
 
   title: {
     ...TYPOGRAPHY.headingSmall,
 
-    color:
-      COLORS.primaryGreen,
+    color: COLORS.primaryGreen,
 
-    marginBottom:
-      SPACING.sm,
+    marginBottom: SPACING.sm,
 
     /**
      * Helps long food names wrap instead
@@ -500,11 +378,9 @@ const styles = StyleSheet.create({
   text: {
     ...TYPOGRAPHY.body,
 
-    color:
-      COLORS.black,
+    color: COLORS.black,
 
-    marginBottom:
-      SPACING.xs,
+    marginBottom: SPACING.xs,
 
     flexShrink: 1,
   },
@@ -512,14 +388,11 @@ const styles = StyleSheet.create({
   status: {
     ...TYPOGRAPHY.body,
 
-    color:
-      COLORS.primaryGreen,
+    color: COLORS.primaryGreen,
 
-    fontWeight:
-      "bold",
+    fontWeight: "bold",
 
-    marginTop:
-      SPACING.xs,
+    marginTop: SPACING.xs,
 
     flexShrink: 1,
   },
@@ -532,48 +405,37 @@ const styles = StyleSheet.create({
 
     minHeight: 48,
 
-    justifyContent:
-      "center",
+    justifyContent: "center",
 
-    alignItems:
-      "center",
+    alignItems: "center",
 
-    backgroundColor:
-      COLORS.primaryTeal,
+    backgroundColor: COLORS.primaryTeal,
 
-    paddingHorizontal:
-      SPACING.md,
+    paddingHorizontal: SPACING.md,
 
-    paddingVertical:
-      SPACING.md,
+    paddingVertical: SPACING.md,
 
     borderRadius: 10,
 
-    marginTop:
-      SPACING.md,
+    marginTop: SPACING.md,
   },
 
   buttonText: {
     ...TYPOGRAPHY.button,
 
-    color:
-      COLORS.white,
+    color: COLORS.white,
 
-    textAlign:
-      "center",
+    textAlign: "center",
   },
 
   loadingText: {
     ...TYPOGRAPHY.body,
 
-    color:
-      COLORS.black,
+    color: COLORS.black,
 
-    marginTop:
-      SPACING.md,
+    marginTop: SPACING.md,
 
-    textAlign:
-      "center",
+    textAlign: "center",
   },
 
   /**
@@ -582,39 +444,31 @@ const styles = StyleSheet.create({
   emptyContainer: {
     width: "100%",
 
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
 
-    padding:
-      SPACING.lg,
+    padding: SPACING.lg,
 
     borderRadius: 12,
 
-    alignItems:
-      "center",
+    alignItems: "center",
   },
 
   emptyTitle: {
     ...TYPOGRAPHY.headingSmall,
 
-    color:
-      COLORS.primaryTeal,
+    color: COLORS.primaryTeal,
 
-    marginBottom:
-      SPACING.sm,
+    marginBottom: SPACING.sm,
 
-    textAlign:
-      "center",
+    textAlign: "center",
   },
 
   emptyText: {
     ...TYPOGRAPHY.body,
 
-    color:
-      COLORS.black,
+    color: COLORS.black,
 
-    textAlign:
-      "center",
+    textAlign: "center",
 
     flexShrink: 1,
   },

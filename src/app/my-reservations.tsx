@@ -41,9 +41,7 @@ import {
   markReservationCollected,
 } from "../services/reservationService";
 
-import {
-  RESERVATION_STATUS,
-} from "../constants/reservationStatus";
+import { RESERVATION_STATUS } from "../constants/roles";
 
 import {
   COLORS,

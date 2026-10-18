@@ -36,9 +36,7 @@ import {
   reserveDonationForNGO,
 } from "../services/reservationService";
 
-import {
-  DONATION_STATUS,
-} from "../constants/donationStatus";
+import { DONATION_STATUS } from "../constants/roles";
 
 import {
   COLORS,
