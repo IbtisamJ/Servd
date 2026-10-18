@@ -2,13 +2,6 @@
  * NGO Verification Screen
  *
  * Displays the NGO's current verification status.
- *
- * NGOs must be approved before they can
- * reserve available donations.
- *
- * This screen uses a responsive mobile layout
- * so that content remains correctly positioned
- * across different device sizes.
  */
 
 import {
@@ -20,101 +13,130 @@ import {
   View,
 } from "react-native";
 
-import {
-  router,
-} from "expo-router";
+import { router } from "expo-router";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 
-import {
-  COLORS,
-  SPACING,
-  TYPOGRAPHY,
-} from "../theme";
+import { Colors, Fonts, Spacing, Radius } from "../constants/theme";
 
 import { NGO_STATUS } from "../constants/roles";
 
 export default function NgoVerification() {
   /**
    * Temporary verification status.
-   *
-   * This will later be replaced with the
-   * authenticated NGO's actual Firestore
-   * verification status.
+   * Replace with the authenticated NGO's
+   * Firestore status when integrated.
    */
-  const verificationStatus =
-    NGO_STATUS.APPROVED;
+  const verificationStatus = NGO_STATUS.APPROVED;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={
-          styles.container
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
       >
-        {/*
-         * Back navigation.
-         *
-         * Returns to the screen that opened
-         * NGO Verification, normally the
-         * NGO Dashboard.
-         */}
+        {/* Back navigation */}
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.7}
-          onPress={() =>
-            router.back()
-          }
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          <Text style={styles.backButtonText}>
-            ← Back to Dashboard
-          </Text>
+          <FontAwesome5
+            name="arrow-left"
+            size={15}
+            color={Colors.light.secondary}
+            iconStyle="solid"
+          />
+
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
 
-        {/* Screen heading */}
-        <Text style={styles.heading}>
-          NGO Verification
-        </Text>
+        {/* Page heading */}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>YOUR ORGANISATION</Text>
 
-        <Text style={styles.subtitle}>
-          View your organisation's current
-          verification information.
-        </Text>
+          <Text style={styles.heading}>NGO Verification</Text>
 
-        {/*
-         * Verification status card.
-         */}
-        <View style={styles.card}>
-          <Text style={styles.label}>
-            Verification Status
+          <Text style={styles.subtitle}>
+            View your organisation's current verification status and account
+            approval.
           </Text>
+        </View>
 
-          <Text style={styles.status}>
-            {verificationStatus}
+        {/* Verification status card */}
+        <View style={styles.card}>
+          <View style={styles.statusTopRow}>
+            <View style={styles.statusIcon}>
+              <FontAwesome5
+                name="shield-alt"
+                size={22}
+                color={Colors.light.accent}
+                iconStyle="solid"
+              />
+            </View>
+
+            <View style={styles.statusBadge}>
+              <View style={styles.statusDot} />
+
+              <Text style={styles.statusBadgeText}>{verificationStatus}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.cardTitle}>Your organisation is approved</Text>
+
+          <Text style={styles.info}>
+            Your organisation has been verified and is eligible to reserve
+            available food donations through Servd.
           </Text>
 
           <View style={styles.divider} />
 
-          <Text style={styles.info}>
-            Your organisation has been verified
-            and is eligible to reserve available
-            donations.
+          <View style={styles.eligibilityRow}>
+            <FontAwesome5
+              name="check-circle"
+              size={16}
+              color={Colors.light.accent}
+              iconStyle="solid"
+            />
+
+            <Text style={styles.eligibilityText}>
+              Donation reservation access enabled
+            </Text>
+          </View>
+        </View>
+
+        {/* Additional information */}
+        <View style={styles.informationCard}>
+          <View style={styles.informationHeadingRow}>
+            <FontAwesome5
+              name="info-circle"
+              size={18}
+              color={Colors.light.secondary}
+              iconStyle="solid"
+            />
+
+            <Text style={styles.informationTitle}>What does this mean?</Text>
+          </View>
+
+          <Text style={styles.informationText}>
+            Your NGO account has been approved to use Servd's donation
+            reservation features. You can browse available donations, reserve
+            suitable food and manage your collection process.
           </Text>
         </View>
 
-        {/*
-         * Additional explanatory information.
-         */}
-        <View style={styles.informationCard}>
-          <Text style={styles.informationTitle}>
-            What does this mean?
-          </Text>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <FontAwesome5
+            name="heart"
+            size={13}
+            color={Colors.light.primary}
+            iconStyle="solid"
+          />
 
-          <Text style={styles.informationText}>
-            Your NGO account has approval to use
-            the donation reservation features
-            available in Servd.
+          <Text style={styles.footerText}>
+            Good food deserves to be shared.
           </Text>
         </View>
       </ScrollView>
@@ -122,228 +144,196 @@ export default function NgoVerification() {
   );
 }
 
-/**
- * Responsive NGO Verification styles.
- *
- * No fixed screen or card dimensions are used,
- * allowing the screen to adapt to different
- * mobile device sizes.
- */
 const styles = StyleSheet.create({
-  /**
-   * Keeps the interface inside the
-   * device's safe display area.
-   */
   safeArea: {
     flex: 1,
-
-    backgroundColor:
-      COLORS.offWhite,
+    backgroundColor: Colors.light.background,
   },
 
-  /**
-   * Scrollable page container.
-   */
   container: {
     flexGrow: 1,
-
     width: "100%",
-
-    backgroundColor:
-      COLORS.offWhite,
-
-    paddingHorizontal:
-      SPACING.lg,
-
-    paddingTop:
-      SPACING.sm,
-
-    paddingBottom:
-      SPACING.xl,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.five,
   },
 
-  /**
-   * Back navigation.
-   */
   backButton: {
-    alignSelf:
-      "flex-start",
-
-    paddingVertical:
-      SPACING.sm,
-
-    paddingRight:
-      SPACING.md,
-
-    marginBottom:
-      SPACING.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    marginBottom: Spacing.four,
   },
 
   backButtonText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.primaryTeal,
-
-    fontWeight:
-      "600",
+    fontFamily: Fonts.button,
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.light.secondary,
   },
 
-  /**
-   * Main page heading.
-   */
+  header: {
+    marginBottom: Spacing.four,
+  },
+
+  eyebrow: {
+    fontFamily: Fonts.button,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    color: Colors.light.secondary,
+    marginBottom: Spacing.two,
+  },
+
   heading: {
-    ...TYPOGRAPHY.headingLarge,
-
-    color:
-      COLORS.primaryTeal,
-
-    marginBottom:
-      SPACING.xs,
-
+    fontFamily: Fonts.heading,
+    fontSize: 28,
+    lineHeight: 35,
+    color: Colors.light.text,
+    marginBottom: Spacing.two,
     flexShrink: 1,
   },
 
-  /**
-   * Supporting text beneath the heading.
-   */
   subtitle: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    marginBottom:
-      SPACING.lg,
-
+    fontFamily: Fonts.body,
+    fontSize: 15,
+    lineHeight: 23,
+    color: Colors.light.textSecondary,
     flexShrink: 1,
   },
 
-  /**
-   * Main verification card.
-   */
   card: {
     width: "100%",
-
-    backgroundColor:
-      COLORS.white,
-
-    padding:
-      SPACING.lg,
-
-    borderRadius: 12,
-
-    marginBottom:
-      SPACING.md,
-
-    elevation: 2,
-
-    shadowColor:
-      "#000000",
-
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-
-    shadowOpacity: 0.08,
-
-    shadowRadius: 3,
+    backgroundColor: Colors.light.backgroundElement,
+    padding: Spacing.four,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.three,
   },
 
-  label: {
-    ...TYPOGRAPHY.body,
+  statusTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: Spacing.two,
+    marginBottom: Spacing.four,
+  },
 
-    color:
-      COLORS.black,
+  statusIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.light.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-    fontWeight:
-      "600",
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.lg,
+  },
 
-    marginBottom:
-      SPACING.xs,
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.light.accent,
+  },
 
+  statusBadgeText: {
+    fontFamily: Fonts.button,
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.light.text,
+  },
+
+  cardTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 21,
+    lineHeight: 28,
+    color: Colors.light.text,
+    marginBottom: Spacing.two,
     flexShrink: 1,
-  },
-
-  /**
-   * Approved status is emphasised visually.
-   */
-  status: {
-    ...TYPOGRAPHY.headingMedium,
-
-    color:
-      COLORS.primaryGreen,
-
-    marginBottom:
-      SPACING.md,
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Separates the status from
-   * the explanatory text.
-   */
-  divider: {
-    width: "100%",
-
-    height: 1,
-
-    backgroundColor:
-      COLORS.beige,
-
-    marginBottom:
-      SPACING.md,
   },
 
   info: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
+    fontFamily: Fonts.body,
+    fontSize: 14,
     lineHeight: 22,
-
+    color: Colors.light.textSecondary,
     flexShrink: 1,
   },
 
-  /**
-   * Secondary information card.
-   */
+  divider: {
+    height: 1,
+    backgroundColor: Colors.light.background,
+    marginVertical: Spacing.three,
+  },
+
+  eligibilityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  eligibilityText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.light.text,
+  },
+
   informationCard: {
     width: "100%",
+    backgroundColor: Colors.light.background,
+    borderWidth: 1,
+    borderColor: Colors.light.backgroundElement,
+    padding: Spacing.three,
+    borderRadius: Radius.lg,
+  },
 
-    backgroundColor:
-      COLORS.beige,
-
-    padding:
-      SPACING.lg,
-
-    borderRadius: 12,
+  informationHeadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    marginBottom: Spacing.two,
   },
 
   informationTitle: {
-    ...TYPOGRAPHY.headingSmall,
-
-    color:
-      COLORS.primaryTeal,
-
-    marginBottom:
-      SPACING.sm,
-
-    flexShrink: 1,
+    flex: 1,
+    fontFamily: Fonts.button,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.light.text,
   },
 
   informationText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
+    fontFamily: Fonts.body,
+    fontSize: 14,
     lineHeight: 22,
-
+    color: Colors.light.textSecondary,
     flexShrink: 1,
   },
+
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    marginTop: Spacing.five,
+  },
+
+  footerText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
 });
-``

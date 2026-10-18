@@ -1,12 +1,11 @@
 /**
  * Available Donations Screen
  *
- * Displays donations from Firestore that currently
- * have the status "Available".
+ * Displays currently available food donations
+ * retrieved from Firestore.
  *
- * The screen refreshes whenever it receives focus,
- * ensuring reservation, cancellation and manual
- * Firestore updates are reflected immediately.
+ * Uses the shared Servd theme and refreshes
+ * whenever the screen receives focus.
  */
 
 import { useCallback, useState } from "react";
@@ -16,37 +15,26 @@ import {
   Alert,
   FlatList,
   SafeAreaView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 
 import { getDonations } from "../services/donationService";
-
 import { DONATION_STATUS } from "../constants/roles";
+import { styles } from "../styles/AvailableDonations.style";
 
-import { COLORS, SPACING, TYPOGRAPHY } from "../theme";
+import { Colors } from "../constants/theme";
 
 export default function AvailableDonations() {
-  /**
-   * Stores donations that are currently
-   * available for reservation.
-   */
   const [donations, setDonations] = useState<any[]>([]);
-
-  /**
-   * Controls the loading indicator while
-   * Firestore data is being retrieved.
-   */
   const [loading, setLoading] = useState(true);
 
   /**
-   * Retrieves all donation records from Firestore
-   * and filters the results so that only donations
-   * with an Available status are displayed.
+   * Load available donations from Firestore.
    */
   const loadDonations = useCallback(async () => {
     try {
@@ -54,31 +42,24 @@ export default function AvailableDonations() {
 
       const data = await getDonations();
 
-      /**
-       * Temporary development log.
-       *
-       * Useful while testing Firestore.
-       * This can be removed before submission.
-       */
-      console.log("Donations loaded from Firestore:", data);
-
-      /**
-       * NGOs should only see donations
-       * that remain available.
-       */
       const availableDonations = data.filter(
         (donation: any) => donation.status === DONATION_STATUS.AVAILABLE,
       );
-
-      console.log("Available donations:", availableDonations);
 
       setDonations(availableDonations);
     } catch (error) {
       console.error("Error loading donations:", error);
 
       Alert.alert(
-        "Loading Error",
-        "Available donations could not be loaded. Please try again.",
+        "Unable to load donations",
+        "Please check your connection and try again.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Try again",
+            onPress: () => loadDonations(),
+          },
+        ],
       );
     } finally {
       setLoading(false);
@@ -86,16 +67,8 @@ export default function AvailableDonations() {
   }, []);
 
   /**
-   * Refresh donation data whenever this
-   * screen becomes active again.
-   *
-   * Examples:
-   *
-   * Available -> Reserved:
-   * Donation disappears.
-   *
-   * Reserved -> Available:
-   * Donation reappears.
+   * Refresh the list whenever this screen
+   * becomes active.
    */
   useFocusEffect(
     useCallback(() => {
@@ -110,366 +83,210 @@ export default function AvailableDonations() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primaryTeal} />
+          <ActivityIndicator size="large" color={Colors.light.secondary} />
 
-          <Text style={styles.loadingText}>Loading available donations...</Text>
+          <Text style={styles.loadingText}>Finding available donations...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  /**
+   * Opens the selected donation's details.
+   * Existing navigation parameters are preserved.
+   */
+  const openDonation = (item: any) => {
+    router.push({
+      pathname: "/donation-details",
+      params: {
+        documentId: item.id,
+        donationId: item.donationId,
+        enterpriseId: item.enterpriseId,
+        foodName: item.foodName,
+        category: item.category,
+        description: item.description,
+        quantity: item.quantity?.toString(),
+        collectionLocation: item.collectionLocation,
+        status:
+          item.status as (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS],
+      },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/*
-         * Back Button
-         *
-         * Returns to the previous screen.
-         * Normally this will be the NGO Dashboard.
-         */}
+        {/* Back navigation */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
           activeOpacity={0.7}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to dashboard"
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <FontAwesome5
+            name="arrow-left"
+            size={14}
+            color={Colors.light.secondary}
+            iconStyle="solid"
+          />
+
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
 
-        {/* Screen heading */}
-        <Text style={styles.heading}>Available Donations</Text>
+        {/* Page introduction */}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>FOOD REDISTRIBUTION</Text>
 
-        {donations.length === 0 ? (
-          /**
-           * Friendly empty state displayed when
-           * there are no Available donations.
-           */
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No Donations Available</Text>
+          <Text style={styles.heading}>Available donations</Text>
 
-            <Text style={styles.emptyText}>
-              There are currently no available donations. Please check again
-              later.
-            </Text>
+          <Text style={styles.subtitle}>
+            Find surplus food available for your organisation to collect.
+          </Text>
+        </View>
+
+        {/* Results count */}
+        <View style={styles.resultsRow}>
+          <Text style={styles.resultsLabel}>Available near you</Text>
+
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{donations.length}</Text>
           </View>
-        ) : (
-          <FlatList
-            data={donations}
-            /**
-             * Actual Firestore document ID
-             * provides a unique list key.
-             */
-            keyExtractor={(item) => item.id}
-            /**
-             * Allows the list to use the remaining
-             * available mobile-screen space.
-             */
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                {/* Donation food name */}
-                <Text style={styles.title}>{item.foodName}</Text>
+        </View>
 
-                {/* Donation category */}
-                <Text style={styles.text}>
-                  Category: {item.category || "Not specified"}
-                </Text>
-
-                {/* Quantity available */}
-                <Text style={styles.text}>
-                  Quantity: {item.quantity ?? "Not specified"}
-                </Text>
-
-                {/* Collection location */}
-                <Text style={styles.text}>
-                  Location: {item.collectionLocation || "Not specified"}
-                </Text>
-
-                {/* Current donation status */}
-                <Text style={styles.status}>
-                  Status:{" "}
-                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                </Text>
-                {/**
-                 * Opens Donation Details and passes
-                 * information about the selected
-                 * Firestore donation.
-                 */}
-                <TouchableOpacity
-                  style={styles.button}
-                  activeOpacity={0.8}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/donation-details",
-                      params: {
-                        documentId: item.id,
-                        donationId: item.donationId,
-                        enterpriseId: item.enterpriseId,
-                        foodName: item.foodName,
-                        category: item.category,
-                        description: item.description,
-                        quantity: item.quantity?.toString(),
-                        collectionLocation: item.collectionLocation,
-                        status:
-                          item.status as (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS],
-                      },
-                    })
-                  }
-                >
-                  <Text style={styles.buttonText}>View Details</Text>
-                </TouchableOpacity>
+        <FlatList
+          data={donations}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          contentContainerStyle={[
+            styles.listContent,
+            donations.length === 0 && styles.emptyListContent,
+          ]}
+          showsVerticalScrollIndicator={false}
+          onRefresh={loadDonations}
+          refreshing={loading}
+          ItemSeparatorComponent={() => <View style={styles.cardSeparator} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIcon}>
+                <FontAwesome5
+                  name="utensils"
+                  size={23}
+                  color={Colors.light.secondary}
+                  iconStyle="solid"
+                />
               </View>
-            )}
-          />
-        )}
+
+              <Text style={styles.emptyTitle}>
+                No donations available just yet
+              </Text>
+
+              <Text style={styles.emptyText}>
+                There are no available food donations at the moment. Please
+                check back later.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.refreshButton}
+                activeOpacity={0.8}
+                onPress={loadDonations}
+                accessibilityRole="button"
+              >
+                <FontAwesome5
+                  name="sync-alt"
+                  size={13}
+                  color={Colors.light.secondary}
+                  iconStyle="solid"
+                />
+
+                <Text style={styles.refreshButtonText}>Check again</Text>
+              </TouchableOpacity>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              {/* Food name and availability */}
+              <View style={styles.cardHeader}>
+                <View style={styles.foodHeading}>
+                  <Text style={styles.foodName}>
+                    {item.foodName || "Food donation"}
+                  </Text>
+
+                  {!!item.category && (
+                    <Text style={styles.category}>{item.category}</Text>
+                  )}
+                </View>
+
+                <View style={styles.availableBadge}>
+                  <View style={styles.availableDot} />
+
+                  <Text style={styles.availableText}>Available</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardDivider} />
+
+              {/* Quantity */}
+              <View style={styles.detailRow}>
+                <View style={styles.detailIcon}>
+                  <FontAwesome5
+                    name="box"
+                    size={15}
+                    color={Colors.light.secondary}
+                    iconStyle="solid"
+                  />
+                </View>
+
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Quantity</Text>
+
+                  <Text style={styles.detailValue}>
+                    {item.quantity ?? "Not specified"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Collection location */}
+              <View style={styles.detailRow}>
+                <View style={styles.detailIcon}>
+                  <FontAwesome5
+                    name="map-marker-alt"
+                    size={15}
+                    color={Colors.light.secondary}
+                    iconStyle="solid"
+                  />
+                </View>
+
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Collection location</Text>
+
+                  <Text style={styles.detailValue}>
+                    {item.collectionLocation || "Not specified"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* View details action */}
+              <TouchableOpacity
+                style={styles.button}
+                activeOpacity={0.8}
+                onPress={() => openDonation(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`View details for ${item.foodName || "food donation"}`}
+              >
+                <Text style={styles.buttonText}>View donation details</Text>
+
+                <FontAwesome5
+                  name="arrow-right"
+                  size={14}
+                  color={Colors.light.background}
+                  iconStyle="solid"
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+        />
       </View>
     </SafeAreaView>
   );
 }
-
-/**
- * Responsive styling for the Available
- * Donations screen.
- *
- * No fixed card or button widths are used,
- * allowing the interface to adapt to
- * different mobile screen sizes.
- */
-const styles = StyleSheet.create({
-  /**
-   * Safe area prevents screen content from
-   * sitting underneath system UI areas.
-   */
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.offWhite,
-  },
-
-  /**
-   * Main screen container.
-   *
-   * Horizontal padding gives consistent margins
-   * while width remains responsive.
-   */
-  container: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: COLORS.offWhite,
-
-    paddingHorizontal: SPACING.lg,
-
-    paddingTop: SPACING.sm,
-  },
-
-  /**
-   * Loading-state layout.
-   */
-  centerContainer: {
-    flex: 1,
-
-    justifyContent: "center",
-
-    alignItems: "center",
-
-    paddingHorizontal: SPACING.lg,
-  },
-
-  /**
-   * Back navigation.
-   */
-  backButton: {
-    alignSelf: "flex-start",
-
-    paddingVertical: SPACING.sm,
-
-    paddingRight: SPACING.md,
-
-    marginBottom: SPACING.xs,
-  },
-
-  backButtonText: {
-    ...TYPOGRAPHY.body,
-
-    color: COLORS.primaryTeal,
-
-    fontWeight: "600",
-  },
-
-  /**
-   * Main page heading.
-   */
-  heading: {
-    ...TYPOGRAPHY.headingLarge,
-
-    color: COLORS.primaryTeal,
-
-    marginBottom: SPACING.lg,
-  },
-
-  /**
-   * Allows FlatList to occupy the remaining
-   * height of the device.
-   */
-  list: {
-    flex: 1,
-    width: "100%",
-  },
-
-  /**
-   * Bottom padding prevents the final card
-   * from sitting against the bottom edge.
-   */
-  listContent: {
-    paddingBottom: SPACING.xl,
-  },
-
-  /**
-   * Donation card.
-   *
-   * The card uses the available parent width
-   * rather than a fixed pixel width.
-   */
-  card: {
-    width: "100%",
-
-    backgroundColor: COLORS.white,
-
-    padding: SPACING.lg,
-
-    borderRadius: 12,
-
-    marginBottom: SPACING.md,
-
-    /**
-     * Subtle Android elevation.
-     */
-    elevation: 2,
-
-    /**
-     * iOS shadow properties.
-     */
-    shadowColor: "#000000",
-
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-
-    shadowOpacity: 0.08,
-
-    shadowRadius: 3,
-  },
-
-  title: {
-    ...TYPOGRAPHY.headingSmall,
-
-    color: COLORS.primaryGreen,
-
-    marginBottom: SPACING.sm,
-
-    /**
-     * Helps long food names wrap instead
-     * of overflowing the card.
-     */
-    flexShrink: 1,
-  },
-
-  text: {
-    ...TYPOGRAPHY.body,
-
-    color: COLORS.black,
-
-    marginBottom: SPACING.xs,
-
-    flexShrink: 1,
-  },
-
-  status: {
-    ...TYPOGRAPHY.body,
-
-    color: COLORS.primaryGreen,
-
-    fontWeight: "bold",
-
-    marginTop: SPACING.xs,
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Responsive full-width action button.
-   */
-  button: {
-    width: "100%",
-
-    minHeight: 48,
-
-    justifyContent: "center",
-
-    alignItems: "center",
-
-    backgroundColor: COLORS.primaryTeal,
-
-    paddingHorizontal: SPACING.md,
-
-    paddingVertical: SPACING.md,
-
-    borderRadius: 10,
-
-    marginTop: SPACING.md,
-  },
-
-  buttonText: {
-    ...TYPOGRAPHY.button,
-
-    color: COLORS.white,
-
-    textAlign: "center",
-  },
-
-  loadingText: {
-    ...TYPOGRAPHY.body,
-
-    color: COLORS.black,
-
-    marginTop: SPACING.md,
-
-    textAlign: "center",
-  },
-
-  /**
-   * Responsive empty-state card.
-   */
-  emptyContainer: {
-    width: "100%",
-
-    backgroundColor: COLORS.white,
-
-    padding: SPACING.lg,
-
-    borderRadius: 12,
-
-    alignItems: "center",
-  },
-
-  emptyTitle: {
-    ...TYPOGRAPHY.headingSmall,
-
-    color: COLORS.primaryTeal,
-
-    marginBottom: SPACING.sm,
-
-    textAlign: "center",
-  },
-
-  emptyText: {
-    ...TYPOGRAPHY.body,
-
-    color: COLORS.black,
-
-    textAlign: "center",
-
-    flexShrink: 1,
-  },
-});

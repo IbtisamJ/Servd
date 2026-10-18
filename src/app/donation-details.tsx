@@ -1,54 +1,31 @@
 /**
  * Donation Details Screen
  *
- * Displays information for the donation selected
- * on the Available Donations screen.
- *
- * An authenticated NGO can reserve an
- * available donation.
+ * Displays detailed information about an available food donation.
+ * Shows food descriptions, quantities, collection locations, and status.
+ * Allows approved NGOs to reserve available donations.
  */
 
-import {
-  useState,
-} from "react";
-
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-
-import {
-  router,
-  useLocalSearchParams,
-} from "expo-router";
-
-import {
-  auth,
-} from "../config/firebase";
-
-import {
-  reserveDonationForNGO,
-} from "../services/reservationService";
-
+import { router, useLocalSearchParams } from "expo-router";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { auth } from "../config/firebase";
+import { reserveDonationForNGO } from "../services/reservationService";
 import { DONATION_STATUS } from "../constants/roles";
 
-import {
-  COLORS,
-  SPACING,
-  TYPOGRAPHY,
-} from "../theme";
+import { Colors } from "../constants/theme";
+import { styles } from "../styles/DonationDetails.style";
 
 export default function DonationDetails() {
-  /**
-   * Donation information received from
-   * Available Donations through Expo Router.
-   */
   const {
     documentId,
     donationId,
@@ -69,567 +46,325 @@ export default function DonationDetails() {
     status: string;
   }>();
 
-  /**
-   * Prevents repeated reservation attempts
-   * while Firestore is processing the request.
-   */
-  const [isReserving, setIsReserving] =
-    useState(false);
+  const [isReserving, setIsReserving] = useState(false);
 
-  /**
-   * Reserves the selected donation for the
-   * currently authenticated NGO.
-   *
-   * The Firebase Authentication UID is saved
-   * as the ngoId on the Reservation document.
-   */
-  const handleReserveDonation =
-    async () => {
-      /**
-       * Make sure the required donation
-       * identifiers were received.
-       */
-      if (
-        !documentId ||
-        !donationId
-      ) {
-        Alert.alert(
-          "Reservation Error",
-          "Donation information is incomplete."
-        );
+  const isAvailable = status === DONATION_STATUS.AVAILABLE;
 
-        return;
-      }
+  const displayValue = (value?: string) => {
+    if (!value || value.trim().length === 0) {
+      return "Not provided";
+    }
 
-      /**
-       * Only an Available donation may
-       * be reserved.
-       */
-      if (
-        status !==
-        DONATION_STATUS.AVAILABLE
-      ) {
-        Alert.alert(
-          "Unavailable Donation",
-          "This donation is no longer available for reservation."
-        );
+    return value;
+  };
 
-        return;
-      }
+  const formattedStatus = status
+    ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+    : "Unknown";
 
-      /**
-       * Retrieve the currently authenticated
-       * Firebase user.
-       */
-      const currentUser =
-        auth.currentUser;
+  const handleReserveDonation = async () => {
+    if (!documentId || !donationId) {
+      Alert.alert(
+        "Donation unavailable",
+        "We couldn't identify this donation. Please return to the donations list and try again.",
+      );
+      return;
+    }
 
-      /**
-       * An unauthenticated user must not
-       * create a reservation.
-       */
-      if (!currentUser) {
-        Alert.alert(
-          "Authentication Required",
-          "Please log in before reserving a donation."
-        );
+    if (!isAvailable) {
+      Alert.alert(
+        "No longer available",
+        "This donation cannot be reserved because it is no longer available.",
+      );
+      return;
+    }
 
-        return;
-      }
+    const currentUser = auth.currentUser;
 
-      /**
-       * The authenticated Firebase UID now
-       * identifies the NGO creating the
-       * reservation.
-       *
-       * This replaces the old development
-       * value:
-       *
-       * NGO001
-       */
-      const ngoId =
-        currentUser.uid;
+    if (!currentUser) {
+      Alert.alert(
+        "Sign in required",
+        "Please sign in to your NGO account before reserving a donation.",
+      );
+      return;
+    }
 
-      try {
-        setIsReserving(true);
+    setIsReserving(true);
 
-        /**
-         * Creates the Reservation and changes
-         * the Donation status:
-         *
-         * Available -> Reserved
-         */
-        await reserveDonationForNGO(
-          documentId,
-          donationId,
-          ngoId,
-          foodName ?? "",
-          collectionLocation ?? ""
-        );
+    try {
+      const ngoId = currentUser.uid;
 
-        /**
-         * Confirm the successful reservation
-         * and provide a direct route to
-         * My Reservations.
-         */
-        Alert.alert(
-          "Reservation Successful",
-          `${
-            foodName ||
-            "The donation"
-          } has been reserved successfully.`,
-          [
-            {
-              text:
-                "View Reservations",
+      await reserveDonationForNGO(
+        documentId,
+        donationId,
+        ngoId,
+        foodName ?? "",
+        collectionLocation ?? "",
+      );
 
-              onPress: () =>
-                router.replace(
-                  "/my-reservations"
-                ),
-            },
-          ]
-        );
+      Alert.alert(
+        "Reservation successful!",
+        "This donation has been reserved for your organisation. Please check your reservations for the collection details.",
+        [
+          {
+            text: "View reservations",
+            onPress: () => router.replace("/my-reservations"),
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Error reserving donation:", error);
 
-      } catch (error) {
-        console.error(
-          "Reservation error:",
-          error
-        );
-
-        /**
-         * Display the Firestore/service error
-         * when one is available.
-         */
-        const message =
-          error instanceof Error
-            ? error.message
-            : "The reservation could not be completed.";
-
-        Alert.alert(
-          "Reservation Failed",
-          message
-        );
-
-      } finally {
-        setIsReserving(false);
-      }
-    };
+      Alert.alert(
+        "Couldn't reserve donation",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while reserving this donation. Please try again.",
+      );
+    } finally {
+      setIsReserving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={
-          styles.container
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/*
-         * Back navigation.
-         *
-         * Returns to Available Donations
-         * when arriving from that screen.
-         */}
-        <TouchableOpacity
-          style={styles.backButton}
-          activeOpacity={0.7}
-          onPress={() =>
-            router.back()
-          }
-        >
-          <Text style={styles.backButtonText}>
-            ← Back to Donations
+        {/* Navigation */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back to donations"
+            activeOpacity={0.75}
+          >
+            <FontAwesome5
+              name="arrow-left"
+              size={15}
+              color={Colors.light.text}
+              iconStyle="solid"
+            />
+          </TouchableOpacity>
+
+          <Text style={styles.topBarTitle}>Donation details</Text>
+
+          <View style={styles.topBarSpacer} />
+        </View>
+
+        {/* Intro */}
+        <View style={styles.introSection}>
+          <View style={styles.eyebrow}>
+            <View style={styles.eyebrowDot} />
+            <Text style={styles.eyebrowText}>
+              A little good goes a long way
+            </Text>
+          </View>
+
+          <Text style={styles.pageTitle}>Food worth{"\n"}sharing.</Text>
+
+          <Text style={styles.pageDescription}>
+            Get to know this donation before reserving it for your organisation.
           </Text>
-        </TouchableOpacity>
+        </View>
 
-        {/* Screen heading */}
-        <Text style={styles.heading}>
-          Donation Details
-        </Text>
+        {/* Donation summary card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.foodIconContainer}>
+              <FontAwesome5
+                name="utensils"
+                size={23}
+                color={Colors.light.secondary}
+                iconStyle="solid"
+              />
+            </View>
 
-        {/*
-         * Selected donation information.
-         */}
-        <View style={styles.card}>
-          {/* Food Name */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Food Name
-            </Text>
-
-            <Text style={styles.value}>
-              {foodName ||
-                "Not specified"}
-            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                !isAvailable && styles.unavailableBadge,
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  !isAvailable && styles.unavailableDot,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  !isAvailable && styles.unavailableStatusText,
+                ]}
+              >
+                {formattedStatus}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.divider} />
+          <Text style={styles.foodName}>{displayValue(foodName)}</Text>
 
-          {/* Category */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Category
-            </Text>
-
-            <Text style={styles.value}>
-              {category ||
-                "Not specified"}
-            </Text>
+          <View style={styles.categoryTag}>
+            <FontAwesome5
+              name="tag"
+              size={11}
+              color={Colors.light.secondary}
+              iconStyle="solid"
+            />
+            <Text style={styles.categoryText}>{displayValue(category)}</Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={styles.heroDivider} />
 
-          {/* Description */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Description
-            </Text>
+          <View style={styles.quantityRow}>
+            <View style={styles.quantityIcon}>
+              <FontAwesome5
+                name="box"
+                size={15}
+                color={Colors.light.accent}
+                iconStyle="solid"
+              />
+            </View>
 
-            <Text style={styles.value}>
-              {description ||
-                "No description provided."}
-            </Text>
+            <View style={styles.quantityContent}>
+              <Text style={styles.quantityLabel}>Donation quantity</Text>
+              <Text style={styles.quantityValue}>{displayValue(quantity)}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Description */}
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>About this donation</Text>
+          <View style={styles.sectionAccent} />
+        </View>
+
+        <View style={styles.descriptionCard}>
+          <Text style={styles.descriptionText}>
+            {displayValue(description)}
+          </Text>
+        </View>
+
+        {/* Collection information */}
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>Collection information</Text>
+          <View style={styles.sectionAccent} />
+        </View>
+
+        <View style={styles.collectionCard}>
+          <View style={styles.collectionIconContainer}>
+            <FontAwesome5
+              name="map-marker-alt"
+              size={18}
+              color={Colors.light.secondary}
+              iconStyle="solid"
+            />
           </View>
 
-          <View style={styles.divider} />
-
-          {/* Quantity */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Quantity
+          <View style={styles.collectionContent}>
+            <Text style={styles.detailLabel}>Collection location</Text>
+            <Text style={styles.detailValue}>
+              {displayValue(collectionLocation)}
             </Text>
-
-            <Text style={styles.value}>
-              {quantity ||
-                "Not specified"}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Collection Location */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Collection Location
-            </Text>
-
-            <Text style={styles.value}>
-              {collectionLocation ||
-                "Not specified"}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Servd Donation ID */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Donation ID
-            </Text>
-
-            <Text style={styles.value}>
-              {donationId ||
-                "Not specified"}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Current Donation Status */}
-          <View style={styles.detailSection}>
-            <Text style={styles.label}>
-              Status
-            </Text>
-
-            <Text style={styles.status}>
-              {status ||
-                "Unknown"}
+            <Text style={styles.collectionHint}>
+              Please review the collection arrangements before collecting.
             </Text>
           </View>
         </View>
 
-        {/*
-         * Reservation button.
-         *
-         * The button is disabled while the
-         * Firestore operation is running.
-         */}
-        <TouchableOpacity
-          style={[
-            styles.button,
-
-            isReserving &&
-              styles.disabledButton,
-          ]}
-          activeOpacity={0.8}
-          disabled={isReserving}
-          onPress={
-            handleReserveDonation
-          }
-        >
-          {isReserving ? (
-            <ActivityIndicator
-              color={
-                COLORS.white
-              }
+        {/* Reference information */}
+        <View style={styles.referenceRow}>
+          <View style={styles.referenceIcon}>
+            <FontAwesome5
+              name="clipboard-list"
+              size={15}
+              color={Colors.light.textSecondary}
+              iconStyle="solid"
             />
-          ) : (
-            <Text style={styles.buttonText}>
-              Reserve Donation
-            </Text>
-          )}
-        </TouchableOpacity>
+          </View>
 
-        <Text style={styles.helperText}>
-          Reserving this donation will add it
-          to your NGO's reservations.
-        </Text>
+          <View style={styles.referenceContent}>
+            <Text style={styles.referenceLabel}>Donation reference</Text>
+            <Text style={styles.referenceValue}>
+              {displayValue(donationId)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Gentle reminder */}
+        <View style={styles.reminderCard}>
+          <View style={styles.reminderIcon}>
+            <FontAwesome5 name="heart" size={16} color={Colors.light.primary} />
+          </View>
+
+          <Text style={styles.reminderText}>
+            Every donation makes a difference. Please reserve only if your
+            organisation can arrange collection.
+          </Text>
+        </View>
+
+        {/* Bottom action */}
+        <View style={styles.actionSection}>
+          <TouchableOpacity
+            style={[
+              styles.reserveButton,
+              (!isAvailable || isReserving) && styles.disabledButton,
+            ]}
+            onPress={handleReserveDonation}
+            disabled={!isAvailable || isReserving}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isAvailable ? "Reserve donation" : "Donation unavailable"
+            }
+            activeOpacity={0.85}
+          >
+            {isReserving ? (
+              <>
+                <ActivityIndicator
+                  size="small"
+                  color={Colors.light.background}
+                />
+                <Text style={styles.reserveButtonText}>
+                  Reserving donation...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.reserveButtonText}>
+                  {isAvailable
+                    ? "Reserve this donation"
+                    : "Donation unavailable"}
+                </Text>
+                {isAvailable && (
+                  <FontAwesome5
+                    name="arrow-right"
+                    size={15}
+                    color={Colors.light.background}
+                    iconStyle="solid"
+                  />
+                )}
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => router.back()}
+            disabled={isReserving}
+            accessibilityRole="button"
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cancelButtonText}>Back to donations</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.footerNote}>
+            Together, we can make surplus food count.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-/**
- * Responsive Donation Details styling.
- *
- * The screen does not use fixed card or
- * page widths, allowing it to adapt to
- * different mobile devices.
- */
-const styles = StyleSheet.create({
-  /**
-   * Keeps content inside the device's
-   * safe display area.
-   */
-  safeArea: {
-    flex: 1,
-
-    backgroundColor:
-      COLORS.offWhite,
-  },
-
-  /**
-   * Scrollable screen container.
-   */
-  container: {
-    flexGrow: 1,
-
-    width: "100%",
-
-    backgroundColor:
-      COLORS.offWhite,
-
-    paddingHorizontal:
-      SPACING.lg,
-
-    paddingTop:
-      SPACING.sm,
-
-    paddingBottom:
-      SPACING.xl,
-  },
-
-  /**
-   * Back navigation.
-   */
-  backButton: {
-    alignSelf:
-      "flex-start",
-
-    paddingVertical:
-      SPACING.sm,
-
-    paddingRight:
-      SPACING.md,
-
-    marginBottom:
-      SPACING.xs,
-  },
-
-  backButtonText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.primaryTeal,
-
-    fontWeight:
-      "600",
-  },
-
-  /**
-   * Main screen heading.
-   */
-  heading: {
-    ...TYPOGRAPHY.headingLarge,
-
-    color:
-      COLORS.primaryTeal,
-
-    marginBottom:
-      SPACING.lg,
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Donation information card.
-   */
-  card: {
-    width: "100%",
-
-    backgroundColor:
-      COLORS.white,
-
-    padding:
-      SPACING.lg,
-
-    borderRadius: 12,
-
-    elevation: 2,
-
-    shadowColor:
-      "#000000",
-
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-
-    shadowOpacity: 0.08,
-
-    shadowRadius: 3,
-  },
-
-  /**
-   * Container for each donation field.
-   */
-  detailSection: {
-    width: "100%",
-
-    paddingVertical:
-      SPACING.sm,
-  },
-
-  label: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    fontWeight:
-      "bold",
-
-    marginBottom:
-      SPACING.xs,
-
-    flexShrink: 1,
-  },
-
-  value: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    flexShrink: 1,
-  },
-
-  status: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.primaryGreen,
-
-    fontWeight:
-      "bold",
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Separates donation information fields.
-   */
-  divider: {
-    width: "100%",
-
-    height: 1,
-
-    backgroundColor:
-      COLORS.beige,
-  },
-
-  /**
-   * Responsive full-width reservation button.
-   */
-  button: {
-    width: "100%",
-
-    minHeight: 52,
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-
-    backgroundColor:
-      COLORS.primaryTeal,
-
-    paddingHorizontal:
-      SPACING.md,
-
-    paddingVertical:
-      SPACING.md,
-
-    borderRadius: 10,
-
-    marginTop:
-      SPACING.lg,
-  },
-
-  /**
-   * Applied while a reservation is
-   * being processed.
-   */
-  disabledButton: {
-    opacity: 0.65,
-  },
-
-  buttonText: {
-    ...TYPOGRAPHY.button,
-
-    color:
-      COLORS.white,
-
-    textAlign:
-      "center",
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Supporting text displayed underneath
-   * the Reserve Donation button.
-   */
-  helperText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    textAlign:
-      "center",
-
-    marginTop:
-      SPACING.sm,
-
-    paddingHorizontal:
-      SPACING.sm,
-
-    opacity: 0.75,
-
-    flexShrink: 1,
-  },
-});

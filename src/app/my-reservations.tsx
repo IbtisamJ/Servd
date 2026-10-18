@@ -1,39 +1,23 @@
 /**
  * My Reservations Screen
  *
- * Displays reservations belonging to the NGO and
- * allows the NGO to track and update collection status.
- *
- * Supported reservation statuses:
- * - Active
- * - Collected
- * - Cancelled
- *
- * Active reservations can be:
- * - Marked as Collected
- * - Cancelled
+ * Allows NGOs to view and manage their reserved food donations.
+ * Displays reservation statuses, collection details, and summary statistics.
+ * Supports confirming collections and cancelling active reservations.
  */
 
-import {
-  useCallback,
-  useState,
-} from "react";
-
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   SafeAreaView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-
-import {
-  router,
-  useFocusEffect,
-} from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 
 import {
   cancelReservation,
@@ -42,272 +26,333 @@ import {
 } from "../services/reservationService";
 
 import { RESERVATION_STATUS } from "../constants/roles";
+import { Colors } from "../constants/theme";
+import { styles } from "../styles/Reservation.styles";
 
-import {
-  COLORS,
-  SPACING,
-  TYPOGRAPHY,
-} from "../theme";
+// Information displayed for each donation reserved by an NGO.
+type Reservation = {
+  id: string;
+  donationDocumentId?: string;
+  donationId?: string;
+  foodName?: string;
+  collectionLocation?: string;
+  status: string;
+};
 
 export default function MyReservations() {
-  /**
-   * Stores reservation records retrieved
-   * from Firestore.
-   */
-  const [reservations, setReservations] =
-    useState<any[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  /**
-   * Controls the loading indicator.
-   */
-  const [loading, setLoading] =
-    useState(true);
+  // Loads reservations whenever this screen is opened or revisited.
+  const loadReservations = useCallback(async () => {
+    try {
+      setLoading(true);
 
-  /**
-   * Stores the reservation currently
-   * being updated.
-   *
-   * This prevents repeated button presses
-   * while a Firestore update is running.
-   */
-  const [updatingId, setUpdatingId] =
-    useState<string | null>(null);
+      const data = await getReservations();
+      setReservations(data as Reservation[]);
+    } catch (error) {
+      console.error("Error loading reservations:", error);
 
-  /**
-   * Retrieves reservations from Firestore.
-   */
-  const loadReservations =
-    useCallback(async () => {
-      try {
-        setLoading(true);
+      Alert.alert(
+        "Couldn't load reservations",
+        "Your reservations could not be loaded. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-        const data =
-          await getReservations();
-
-        setReservations(data);
-
-      } catch (error) {
-        console.error(
-          "Error loading reservations:",
-          error
-        );
-
-        Alert.alert(
-          "Loading Error",
-          "Your reservations could not be loaded."
-        );
-
-      } finally {
-        setLoading(false);
-      }
-    }, []);
-
-  /**
-   * Refresh reservations when the user
-   * returns to this screen.
-   */
+  // Refreshes reservation information when the screen regains focus.
   useFocusEffect(
     useCallback(() => {
       loadReservations();
-    }, [loadReservations])
+    }, [loadReservations]),
   );
 
-  /**
-   * Marks an Active reservation as Collected.
-   *
-   * The associated Donation is also changed
-   * from Reserved to Collected.
-   */
-  const handleMarkCollected =
-    async (item: any) => {
-      if (
-        !item.id ||
-        !item.donationDocumentId
-      ) {
-        Alert.alert(
-          "Update Error",
-          "The reservation does not contain all the information required for this update."
-        );
-
-        return;
-      }
-
-      try {
-        setUpdatingId(item.id);
-
-        await markReservationCollected(
-          item.id,
-          item.donationDocumentId
-        );
-
-        Alert.alert(
-          "Collection Updated",
-          `${
-            item.foodName ||
-            "The donation"
-          } has been marked as collected.`
-        );
-
-        /**
-         * Refresh so the Collected status
-         * appears immediately.
-         */
-        await loadReservations();
-
-      } catch (error) {
-        console.error(
-          "Collection update error:",
-          error
-        );
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "The reservation could not be marked as collected.";
-
-        Alert.alert(
-          "Update Failed",
-          message
-        );
-
-      } finally {
-        setUpdatingId(null);
-      }
-    };
-
-  /**
-   * Cancels an Active reservation.
-   *
-   * Reservation:
-   * Active -> Cancelled
-   *
-   * Donation:
-   * Reserved -> Available
-   */
-  const handleCancelReservation =
-    async (item: any) => {
-      if (
-        !item.id ||
-        !item.donationDocumentId
-      ) {
-        Alert.alert(
-          "Cancellation Error",
-          "The reservation does not contain all the information required for cancellation."
-        );
-
-        return;
-      }
-
-      /**
-       * Ask for confirmation before the
-       * Firestore records are changed.
-       */
+  // Marks an active reservation as collected after validating its IDs.
+  const handleMarkCollected = async (item: Reservation) => {
+    if (!item.id || !item.donationDocumentId) {
       Alert.alert(
-        "Cancel Reservation",
-        `Are you sure you want to cancel the reservation for ${
-          item.foodName ||
-          "this donation"
-        }?`,
-        [
-          {
-            text:
-              "Keep Reservation",
-
-            style:
-              "cancel",
-          },
-
-          {
-            text:
-              "Cancel Reservation",
-
-            style:
-              "destructive",
-
-            onPress: async () => {
-              try {
-                setUpdatingId(
-                  item.id
-                );
-
-                await cancelReservation(
-                  item.id,
-                  item.donationDocumentId
-                );
-
-                Alert.alert(
-                  "Reservation Cancelled",
-                  "The reservation has been cancelled and the donation is available again."
-                );
-
-                /**
-                 * Refresh immediately after
-                 * the Firestore update.
-                 */
-                await loadReservations();
-
-              } catch (error) {
-                console.error(
-                  "Reservation cancellation error:",
-                  error
-                );
-
-                const message =
-                  error instanceof Error
-                    ? error.message
-                    : "The reservation could not be cancelled.";
-
-                Alert.alert(
-                  "Cancellation Failed",
-                  message
-                );
-
-              } finally {
-                setUpdatingId(
-                  null
-                );
-              }
-            },
-          },
-        ]
+        "Update unavailable",
+        "This reservation is missing information needed to update its collection status.",
       );
-    };
+      return;
+    }
 
-  /**
-   * Returns a colour representing
-   * each reservation status.
-   */
-  const getStatusColor = (
-    status: string
-  ) => {
-    switch (status) {
-      case RESERVATION_STATUS.COLLECTED:
-        return COLORS.primaryGreen;
+    try {
+      setUpdatingId(item.id);
 
-      case RESERVATION_STATUS.CANCELLED:
-        return COLORS.primaryRed;
+      await markReservationCollected(item.id, item.donationDocumentId);
+      await loadReservations();
 
-      default:
-        return COLORS.primaryTeal;
+      Alert.alert(
+        "Collection confirmed",
+        `${item.foodName || "The donation"} has been marked as collected.`,
+      );
+    } catch (error) {
+      console.error("Collection update error:", error);
+
+      Alert.alert(
+        "Couldn't update collection",
+        error instanceof Error
+          ? error.message
+          : "The reservation could not be marked as collected.",
+      );
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  /**
-   * Loading state.
-   */
+  // Requests confirmation before cancelling a reservation.
+  const handleCancelReservation = (item: Reservation) => {
+    if (!item.id || !item.donationDocumentId) {
+      Alert.alert(
+        "Cancellation unavailable",
+        "This reservation is missing information needed to cancel it.",
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Cancel reservation?",
+      `Are you sure you want to cancel the reservation for ${
+        item.foodName || "this donation"
+      }? The donation may become available to another organisation.`,
+      [
+        {
+          text: "Keep reservation",
+          style: "cancel",
+        },
+        {
+          text: "Cancel reservation",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setUpdatingId(item.id);
+
+              await cancelReservation(item.id, item.donationDocumentId!);
+
+              await loadReservations();
+
+              Alert.alert(
+                "Reservation cancelled",
+                "Your reservation has been cancelled.",
+              );
+            } catch (error) {
+              console.error("Reservation cancellation error:", error);
+
+              Alert.alert(
+                "Couldn't cancel reservation",
+                error instanceof Error
+                  ? error.message
+                  : "The reservation could not be cancelled.",
+              );
+            } finally {
+              setUpdatingId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // Provides consistent colours and labels for each reservation status.
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case RESERVATION_STATUS.COLLECTED:
+        return {
+          backgroundColor: "#E4EBD8",
+          textColor: Colors.light.accent,
+          label: "Collected",
+        };
+
+      case RESERVATION_STATUS.CANCELLED:
+        return {
+          backgroundColor: "#F5E2DE",
+          textColor: Colors.light.primary,
+          label: "Cancelled",
+        };
+
+      default:
+        return {
+          backgroundColor: "#DDECE9",
+          textColor: Colors.light.secondary,
+          label:
+            status.length > 0
+              ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+              : "Unknown",
+        };
+    }
+  };
+
+  // Calculates the reservation totals shown in the compact overview.
+  const activeCount = reservations.filter(
+    (item) => item.status === RESERVATION_STATUS.ACTIVE,
+  ).length;
+
+  const collectedCount = reservations.filter(
+    (item) => item.status === RESERVATION_STATUS.COLLECTED,
+  ).length;
+
+  // Displays an individual reservation and its available actions.
+  const renderReservation = ({ item }: { item: Reservation }) => {
+    const isUpdating = updatingId === item.id;
+    const isActive = item.status === RESERVATION_STATUS.ACTIVE;
+    const statusStyle = getStatusStyle(item.status);
+
+    return (
+      <View style={styles.reservationCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.foodIcon}>
+            <FontAwesome5
+              name="utensils"
+              size={17}
+              color={Colors.light.secondary}
+              iconStyle="solid"
+            />
+          </View>
+
+          <View style={styles.cardHeading}>
+            <Text style={styles.cardEyebrow}>RESERVED FOOD</Text>
+            <Text style={styles.cardTitle}>
+              {item.foodName || "Reserved donation"}
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: statusStyle.backgroundColor },
+          ]}
+        >
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: statusStyle.textColor },
+            ]}
+          />
+          <Text style={[styles.statusText, { color: statusStyle.textColor }]}>
+            {statusStyle.label}
+          </Text>
+        </View>
+
+        <View style={styles.details}>
+          <View style={styles.detailRow}>
+            <FontAwesome5
+              name="hashtag"
+              size={13}
+              color={Colors.light.textSecondary}
+              iconStyle="solid"
+            />
+
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Donation reference</Text>
+              <Text style={styles.detailValue}>
+                {item.donationId || "Not available"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <FontAwesome5
+              name="map-marker-alt"
+              size={15}
+              color={Colors.light.textSecondary}
+              iconStyle="solid"
+            />
+
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Collection location</Text>
+              <Text style={styles.detailValue}>
+                {item.collectionLocation || "Not provided"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Only active reservations can be collected or cancelled. */}
+        {isActive && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[
+                styles.collectButton,
+                isUpdating && styles.disabledButton,
+              ]}
+              activeOpacity={0.8}
+              disabled={isUpdating}
+              onPress={() => handleMarkCollected(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Mark ${item.foodName || "donation"} as collected`}
+            >
+              {isUpdating ? (
+                <ActivityIndicator
+                  size="small"
+                  color={Colors.light.background}
+                />
+              ) : (
+                <>
+                  <FontAwesome5
+                    name="check"
+                    size={13}
+                    color={Colors.light.background}
+                    iconStyle="solid"
+                  />
+                  <Text style={styles.collectButtonText}>
+                    Mark as collected
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.cancelButton, isUpdating && styles.disabledButton]}
+              activeOpacity={0.7}
+              disabled={isUpdating}
+              onPress={() => handleCancelReservation(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Cancel reservation for ${item.foodName || "donation"}`}
+            >
+              <Text style={styles.cancelButtonText}>Cancel reservation</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Confirms successful collection without offering further actions. */}
+        {item.status === RESERVATION_STATUS.COLLECTED && (
+          <View style={styles.feedbackNote}>
+            <FontAwesome5
+              name="heart"
+              size={14}
+              color={Colors.light.accent}
+              iconStyle="solid"
+            />
+            <Text style={styles.feedbackText}>
+              Collected successfully. Thank you for helping good food reach your
+              community.
+            </Text>
+          </View>
+        )}
+
+        {item.status === RESERVATION_STATUS.CANCELLED && (
+          <Text style={styles.cancelledNote}>
+            This reservation is no longer active.
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  // Shows a simple loading screen while reservation data is retrieved.
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator
-            size="large"
-            color={
-              COLORS.primaryTeal
-            }
-          />
-
-          <Text style={styles.loadingText}>
-            Loading reservations...
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.light.secondary} />
+          <Text style={styles.loadingTitle}>Loading your reservations</Text>
+          <Text style={styles.loadingSubtitle}>
+            Just a moment while we get everything ready.
           </Text>
         </View>
       </SafeAreaView>
@@ -316,565 +361,128 @@ export default function MyReservations() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <FlatList
+        data={reservations}
+        keyExtractor={(item) => item.id}
+        renderItem={renderReservation}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View>
+            {/* Returns directly to the NGO dashboard. */}
+            <TouchableOpacity
+              style={styles.backButton}
+              activeOpacity={0.7}
+              onPress={() => router.replace("/ngo-dashboard")}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to dashboard"
+            >
+              <FontAwesome5
+                name="arrow-left"
+                size={14}
+                color={Colors.light.secondary}
+                iconStyle="solid"
+              />
 
-        {/*
-         * Returns to the screen that opened
-         * My Reservations, normally the NGO Dashboard.
-         */}
-        <TouchableOpacity
-          style={styles.backButton}
-          activeOpacity={0.7}
-          onPress={() =>
-            router.back()
-          }
-        >
-          <Text style={styles.backButtonText}>
-            ← Back to Dashboard
-          </Text>
-        </TouchableOpacity>
+              <Text style={styles.backButtonText}>Back to Dashboard</Text>
+            </TouchableOpacity>
 
-        <Text style={styles.heading}>
-          My Reservations
-        </Text>
+            {/* Introduces the screen without unnecessary decorative panels. */}
+            <View style={styles.introSection}>
+              <Text style={styles.eyebrow}>YOUR COMMUNITY IMPACT</Text>
 
-        {reservations.length === 0 ? (
-          /**
-           * Empty state.
-           */
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>
-              No Reservations Yet
+              <Text style={styles.pageTitle}>
+                Good food,{"\n"}put to good use.
+              </Text>
+
+              <Text style={styles.pageDescription}>
+                Keep track of the food your organisation has reserved and manage
+                upcoming collections.
+              </Text>
+            </View>
+
+            {/* A compact overview keeps the key totals easy to scan. */}
+            <View style={styles.overview}>
+              <View style={styles.overviewItem}>
+                <Text style={styles.overviewNumber}>{activeCount}</Text>
+                <Text style={styles.overviewLabel}>To collect</Text>
+              </View>
+
+              <View style={styles.overviewDivider} />
+
+              <View style={styles.overviewItem}>
+                <Text style={styles.overviewNumber}>{collectedCount}</Text>
+                <Text style={styles.overviewLabel}>Collected</Text>
+              </View>
+
+              <View style={styles.overviewDivider} />
+
+              <View style={styles.overviewItem}>
+                <Text style={styles.overviewNumber}>{reservations.length}</Text>
+                <Text style={styles.overviewLabel}>Total reserved</Text>
+              </View>
+            </View>
+
+            {/* Uses NGO-specific terminology throughout the reservation list. */}
+            <View style={styles.listHeading}>
+              <View>
+                <Text style={styles.sectionTitle}>Reserved donations</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Your organisation's collection activity
+                </Text>
+              </View>
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <FontAwesome5
+                name="hand-holding-heart"
+                size={29}
+                color={Colors.light.secondary}
+                iconStyle="solid"
+              />
+            </View>
+
+            <Text style={styles.emptyTitle}>Nothing reserved just yet</Text>
+
+            <Text style={styles.emptyDescription}>
+              When your organisation reserves a donation, its collection details
+              and status will appear here.
             </Text>
 
-            <Text style={styles.emptyText}>
-              Your reserved donations will
-              appear here.
-            </Text>
-
-            {/*
-             * Gives the NGO a logical next
-             * action from the empty state.
-             */}
             <TouchableOpacity
               style={styles.browseButton}
               activeOpacity={0.8}
-              onPress={() =>
-                router.push(
-                  "/available-donations"
-                )
-              }
+              onPress={() => router.push("/available-donations")}
+              accessibilityRole="button"
+              accessibilityLabel="Explore available donations"
             >
-              <Text style={styles.buttonText}>
-                Browse Donations
-              </Text>
+              <Text style={styles.browseButtonText}>Explore donations</Text>
+              <FontAwesome5
+                name="arrow-right"
+                size={13}
+                color={Colors.light.background}
+                iconStyle="solid"
+              />
             </TouchableOpacity>
           </View>
-        ) : (
-          <FlatList
-            data={reservations}
-
-            keyExtractor={(item) =>
-              item.id
-            }
-
-            style={styles.list}
-
-            contentContainerStyle={
-              styles.listContent
-            }
-
-            showsVerticalScrollIndicator={
-              false
-            }
-
-            renderItem={({ item }) => {
-              const isUpdating =
-                updatingId ===
-                item.id;
-
-              const isActive =
-                item.status ===
-                RESERVATION_STATUS.ACTIVE;
-
-              return (
-                <View style={styles.card}>
-
-                  {/* Food name */}
-                  <Text style={styles.title}>
-                    {item.foodName ||
-                      "Reserved Donation"}
-                  </Text>
-
-                  <View style={styles.divider} />
-
-                  {/* Servd Donation ID */}
-                  <View style={styles.detailSection}>
-                    <Text style={styles.label}>
-                      Donation ID
-                    </Text>
-
-                    <Text style={styles.text}>
-                      {item.donationId ||
-                        "Not available"}
-                    </Text>
-                  </View>
-
-                  {/* Collection location */}
-                  <View style={styles.detailSection}>
-                    <Text style={styles.label}>
-                      Collection Location
-                    </Text>
-
-                    <Text style={styles.text}>
-                      {item.collectionLocation ||
-                        "Not available"}
-                    </Text>
-                  </View>
-
-                  {/* Reservation status */}
-                  <View style={styles.detailSection}>
-                    <Text style={styles.label}>
-                      Reservation Status
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.status,
-                        {
-                          color:
-                            getStatusColor(
-                              item.status
-                            ),
-                        },
-                      ]}
-                    >
-                      {item.status ||
-                        "Unknown"}
-                    </Text>
-                  </View>
-
-                  {/*
-                   * Only Active reservations
-                   * can be collected or cancelled.
-                   */}
-                  {isActive && (
-                    <View style={styles.actions}>
-                      <TouchableOpacity
-                        style={[
-                          styles.collectButton,
-
-                          isUpdating &&
-                            styles.disabledButton,
-                        ]}
-                        activeOpacity={0.8}
-                        disabled={isUpdating}
-                        onPress={() =>
-                          handleMarkCollected(
-                            item
-                          )
-                        }
-                      >
-                        {isUpdating ? (
-                          <ActivityIndicator
-                            color={
-                              COLORS.white
-                            }
-                          />
-                        ) : (
-                          <Text style={styles.buttonText}>
-                            Mark as Collected
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.cancelButton,
-
-                          isUpdating &&
-                            styles.disabledButton,
-                        ]}
-                        activeOpacity={0.8}
-                        disabled={isUpdating}
-                        onPress={() =>
-                          handleCancelReservation(
-                            item
-                          )
-                        }
-                      >
-                        <Text style={styles.buttonText}>
-                          Cancel Reservation
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                </View>
-              );
-            }}
-          />
-        )}
-      </View>
+        }
+        ListFooterComponent={
+          <View style={styles.footer}>
+            <FontAwesome5
+              name="heart"
+              size={12}
+              color={Colors.light.accent}
+              iconStyle="solid"
+            />
+            <Text style={styles.footerText}>
+              Helping good food reach the people who need it.
+            </Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }
-
-/**
- * Responsive styles for the
- * My Reservations screen.
- */
-const styles = StyleSheet.create({
-  /**
-   * Keeps content inside the mobile
-   * device's safe display area.
-   */
-  safeArea: {
-    flex: 1,
-    backgroundColor:
-      COLORS.offWhite,
-  },
-
-  /**
-   * Main screen container.
-   */
-  container: {
-    flex: 1,
-
-    width: "100%",
-
-    backgroundColor:
-      COLORS.offWhite,
-
-    paddingHorizontal:
-      SPACING.lg,
-
-    paddingTop:
-      SPACING.sm,
-  },
-
-  /**
-   * Loading state.
-   */
-  centerContainer: {
-    flex: 1,
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-
-    paddingHorizontal:
-      SPACING.lg,
-  },
-
-  /**
-   * Navigation back to NGO Dashboard.
-   */
-  backButton: {
-    alignSelf:
-      "flex-start",
-
-    paddingVertical:
-      SPACING.sm,
-
-    paddingRight:
-      SPACING.md,
-
-    marginBottom:
-      SPACING.xs,
-  },
-
-  backButtonText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.primaryTeal,
-
-    fontWeight:
-      "600",
-  },
-
-  heading: {
-    ...TYPOGRAPHY.headingLarge,
-
-    color:
-      COLORS.primaryTeal,
-
-    marginBottom:
-      SPACING.lg,
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Reservation list fills the remaining
-   * available screen space.
-   */
-  list: {
-    flex: 1,
-    width: "100%",
-  },
-
-  /**
-   * Ensures the final reservation does not
-   * sit directly against the bottom edge.
-   */
-  listContent: {
-    paddingBottom:
-      SPACING.xl,
-  },
-
-  /**
-   * Responsive reservation card.
-   */
-  card: {
-    width: "100%",
-
-    backgroundColor:
-      COLORS.white,
-
-    padding:
-      SPACING.lg,
-
-    borderRadius: 12,
-
-    marginBottom:
-      SPACING.md,
-
-    elevation: 2,
-
-    shadowColor:
-      "#000000",
-
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-
-    shadowOpacity: 0.08,
-
-    shadowRadius: 3,
-  },
-
-  title: {
-    ...TYPOGRAPHY.headingSmall,
-
-    color:
-      COLORS.primaryGreen,
-
-    marginBottom:
-      SPACING.sm,
-
-    flexShrink: 1,
-  },
-
-  divider: {
-    width: "100%",
-
-    height: 1,
-
-    backgroundColor:
-      COLORS.beige,
-
-    marginBottom:
-      SPACING.sm,
-  },
-
-  detailSection: {
-    width: "100%",
-    marginTop:
-      SPACING.sm,
-  },
-
-  label: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    fontWeight:
-      "bold",
-
-    marginBottom:
-      SPACING.xs,
-
-    flexShrink: 1,
-  },
-
-  text: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    flexShrink: 1,
-  },
-
-  status: {
-    ...TYPOGRAPHY.body,
-
-    fontWeight:
-      "bold",
-
-    flexShrink: 1,
-  },
-
-  /**
-   * Reservation actions remain vertically
-   * stacked, which works well on narrow phones.
-   */
-  actions: {
-    width: "100%",
-
-    marginTop:
-      SPACING.lg,
-  },
-
-  collectButton: {
-    width: "100%",
-
-    minHeight: 50,
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-
-    backgroundColor:
-      COLORS.primaryGreen,
-
-    paddingHorizontal:
-      SPACING.md,
-
-    paddingVertical:
-      SPACING.md,
-
-    borderRadius: 10,
-
-    marginBottom:
-      SPACING.sm,
-  },
-
-  cancelButton: {
-    width: "100%",
-
-    minHeight: 50,
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-
-    backgroundColor:
-      COLORS.primaryRed,
-
-    paddingHorizontal:
-      SPACING.md,
-
-    paddingVertical:
-      SPACING.md,
-
-    borderRadius: 10,
-  },
-
-  browseButton: {
-    width: "100%",
-
-    minHeight: 50,
-
-    justifyContent:
-      "center",
-
-    alignItems:
-      "center",
-
-    backgroundColor:
-      COLORS.primaryTeal,
-
-    paddingHorizontal:
-      SPACING.md,
-
-    paddingVertical:
-      SPACING.md,
-
-    borderRadius: 10,
-
-    marginTop:
-      SPACING.lg,
-  },
-
-  disabledButton: {
-    opacity: 0.6,
-  },
-
-  buttonText: {
-    ...TYPOGRAPHY.button,
-
-    color:
-      COLORS.white,
-
-    textAlign:
-      "center",
-
-    flexShrink: 1,
-  },
-
-  loadingText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    marginTop:
-      SPACING.md,
-
-    textAlign:
-      "center",
-  },
-
-  emptyContainer: {
-    width: "100%",
-
-    backgroundColor:
-      COLORS.white,
-
-    padding:
-      SPACING.lg,
-
-    borderRadius: 12,
-
-    alignItems:
-      "center",
-  },
-
-  emptyTitle: {
-    ...TYPOGRAPHY.headingSmall,
-
-    color:
-      COLORS.primaryTeal,
-
-    marginBottom:
-      SPACING.sm,
-
-    textAlign:
-      "center",
-
-    flexShrink: 1,
-  },
-
-  emptyText: {
-    ...TYPOGRAPHY.body,
-
-    color:
-      COLORS.black,
-
-    textAlign:
-      "center",
-
-    flexShrink: 1,
-  },
-});
