@@ -19,7 +19,7 @@
     "expo-image": "~57.0.5",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
-    "expo-router": "~57.0.24",
+    "expo-router": "~57.0.28",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
@@ -50,5 +50,10 @@
     "web": "expo start --web",
     "lint": "expo lint"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "router": {
+      "appDir": "src/app"
+    }
+  }
 }
