@@ -43,6 +43,6 @@ export const COLLECTIONS = {
   USERS: "users",
   NGOS: "ngos",
   ENTERPRISES: "foodEnterprises",
-  DONATIONS: "donations",
-  RESERVATIONS: "reservations",
+  DONATIONS: "Donations",
+  RESERVATIONS: "Reservations",
 } as const;
