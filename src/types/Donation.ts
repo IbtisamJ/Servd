@@ -1,3 +1,5 @@
+import { DONATION_STATUS } from "../constants/roles";
+
 export interface Donation {
   donationId?: string;
   enterpriseId: string;
@@ -8,6 +10,6 @@ export interface Donation {
   collectionLocation: string;
   collectionDeadline: Date;
   expiryDate: Date;
-  status: string;
+  status: (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS];
   createdTimestamp: Date;
 }
