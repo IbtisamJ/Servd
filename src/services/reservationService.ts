@@ -32,13 +32,9 @@ import {
   db,
 } from "../config/firebase";
 
-import {
-  RESERVATION_STATUS,
-} from "../constants/reservationStatus";
+import { RESERVATION_STATUS } from "../constants/roles";
 
-import {
-  DONATION_STATUS,
-} from "../constants/donationStatus";
+import { DONATION_STATUS } from "../constants/roles";
 
 /**
  * Reserves an available donation for an NGO.

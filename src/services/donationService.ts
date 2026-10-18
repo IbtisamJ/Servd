@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
-import { DONATION_STATUS } from "../constants/donationStatus";
+import { DONATION_STATUS } from "../constants/roles";
 import { Donation } from "../types/Donation";
 
 /**
