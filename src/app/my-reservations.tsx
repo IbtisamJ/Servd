@@ -6,6 +6,8 @@
  * Supports confirming collections and cancelling active reservations.
  */
 
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,12 +18,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router, useFocusEffect } from "expo-router";
-import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+
+import { auth } from "../config/firebase";
 
 import {
   cancelReservation,
-  getReservations,
+  getReservationsForNGO,
   markReservationCollected,
 } from "../services/reservationService";
 
@@ -49,7 +51,23 @@ export default function MyReservations() {
     try {
       setLoading(true);
 
-      const data = await getReservations();
+      const currentUser =
+        auth.currentUser;
+
+      if (!currentUser) {
+        Alert.alert(
+          "Authentication Required",
+          "Please log in to view your reservations.",
+        );
+
+        setReservations([]);
+        return;
+      }
+
+      const data = await getReservationsForNGO(
+        currentUser.uid,
+      );
+
       setReservations(data as Reservation[]);
     } catch (error) {
       console.error("Error loading reservations:", error);

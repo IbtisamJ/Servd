@@ -6,6 +6,8 @@
  * Allows approved NGOs to reserve available donations.
  */
 
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -16,11 +18,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { auth } from "../config/firebase";
-import { reserveDonationForNGO } from "../services/reservationService";
 import { DONATION_STATUS } from "../constants/roles";
+import { reserveDonationForNGO } from "../services/reservationService";
 
 import { Colors } from "../constants/theme";
 import { styles } from "../styles/DonationDetails.style";
