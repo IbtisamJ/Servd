@@ -1,7 +1,7 @@
 import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig.js'; // Adjust path if needed
 
-// 1. Approve/reject NGOs
+// Approve/reject NGOs
 export const approveOrRejectNGO = async (ngoUserId, newStatus) => {
   try {
     const ngoRef = doc(db, 'NGOs', ngoUserId);
