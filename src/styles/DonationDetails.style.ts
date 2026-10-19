@@ -17,71 +17,51 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
 
+  scrollView: {
+    flex: 1,
+  },
+
   scrollContent: {
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.five,
   },
 
-  // Navigation
-  topBar: {
+  // Back navigation
+  backButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    alignSelf: "flex-start",
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
     marginBottom: Spacing.four,
   },
 
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.light.backgroundElement,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  topBarTitle: {
+  backButtonText: {
     fontFamily: Fonts.body,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
-    color: Colors.light.text,
+    color: Colors.light.secondary,
   },
 
-  topBarSpacer: {
-    width: 42,
-  },
-
-  // Intro
+  // Page introduction
   introSection: {
     marginBottom: Spacing.four,
   },
 
   eyebrow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.two,
-  },
-
-  eyebrowDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.light.accent,
-    marginRight: Spacing.two,
-  },
-
-  eyebrowText: {
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
     color: Colors.light.secondary,
-    fontWeight: "600",
-    letterSpacing: 0.3,
+    marginBottom: Spacing.two,
   },
 
   pageTitle: {
     fontFamily: Fonts.heading,
-    fontSize: 34,
-    lineHeight: 41,
+    fontSize: 32,
+    lineHeight: 40,
     color: Colors.light.text,
     marginBottom: Spacing.two,
   },
@@ -91,65 +71,65 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: Colors.light.textSecondary,
-    maxWidth: 310,
+    maxWidth: 330,
   },
 
-  // Hero card
-  heroCard: {
-    backgroundColor: Colors.light.backgroundElement,
+  // Donation overview card
+  donationCard: {
+    backgroundColor: "#FFFEFC",
+    borderWidth: 1,
+    borderColor: "#E9E1D5",
     borderRadius: Radius.lg,
     padding: Spacing.three,
     marginBottom: Spacing.four,
   },
 
-  heroTopRow: {
+  statusRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: Spacing.two,
     marginBottom: Spacing.three,
   },
 
-  foodIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.light.background,
-    alignItems: "center",
-    justifyContent: "center",
+  cardEyebrow: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: Colors.light.textSecondary,
   },
 
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 7,
+    gap: 6,
+    backgroundColor: "#E9EFDF",
     borderRadius: 20,
-    backgroundColor: "#E4EBD8",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+
+  unavailableBadge: {
+    backgroundColor: Colors.light.backgroundElement,
   },
 
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: Colors.light.accent,
-    marginRight: 6,
+  },
+
+  unavailableStatusDot: {
+    backgroundColor: Colors.light.textSecondary,
   },
 
   statusText: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    fontWeight: "700",
-    color: Colors.light.accent,
-    textTransform: "capitalize",
-  },
-
-  unavailableBadge: {
-    backgroundColor: Colors.light.background,
-  },
-
-  unavailableDot: {
-    backgroundColor: Colors.light.textSecondary,
+    fontWeight: "600",
+    color: "#526D35",
   },
 
   unavailableStatusText: {
@@ -158,251 +138,204 @@ export const styles = StyleSheet.create({
 
   foodName: {
     fontFamily: Fonts.heading,
-    fontSize: 25,
-    lineHeight: 32,
+    fontSize: 27,
+    lineHeight: 35,
     color: Colors.light.text,
-    marginBottom: Spacing.two,
-  },
-
-  categoryTag: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.light.background,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 6,
-    gap: 7,
+    marginBottom: Spacing.one,
   },
 
   categoryText: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.light.secondary,
-    fontWeight: "600",
+    fontSize: 13,
+    lineHeight: 20,
+    color: Colors.light.textSecondary,
   },
 
-  heroDivider: {
+  cardDivider: {
     height: 1,
-    backgroundColor: "#E0D3BC",
-    marginVertical: Spacing.three,
+    backgroundColor: "#E9E1D5",
+    marginTop: Spacing.three,
+    marginBottom: Spacing.three,
   },
 
+  // Quantity
   quantityRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: Spacing.three,
   },
 
   quantityIcon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
-    backgroundColor: Colors.light.background,
+    backgroundColor: Colors.light.backgroundElement,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.two,
   },
 
   quantityContent: {
     flex: 1,
   },
 
-  quantityLabel: {
+  detailLabel: {
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
     color: Colors.light.textSecondary,
-    marginBottom: 3,
+    marginBottom: Spacing.one,
   },
 
   quantityValue: {
     fontFamily: Fonts.body,
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.light.text,
-  },
-
-  // Section headings
-  sectionHeading: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.two,
-    marginTop: Spacing.one,
-  },
-
-  sectionTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.light.text,
-    marginRight: Spacing.two,
-  },
-
-  sectionAccent: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E6D9C3",
-  },
-
-  // Description
-  descriptionCard: {
-    backgroundColor: Colors.light.background,
-    borderWidth: 1,
-    borderColor: "#E6D9C3",
-    borderRadius: Radius.md,
-    padding: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-
-  descriptionText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    lineHeight: 22,
-    color: Colors.light.textSecondary,
-  },
-
-  // Collection
-  collectionCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: Colors.light.background,
-    borderWidth: 1,
-    borderColor: "#E6D9C3",
-    borderRadius: Radius.md,
-    padding: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-
-  collectionIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.light.backgroundElement,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.three,
-  },
-
-  collectionContent: {
-    flex: 1,
-  },
-
-  detailLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.light.textSecondary,
-    marginBottom: 5,
-  },
-
-  detailValue: {
-    fontFamily: Fonts.body,
     fontSize: 15,
     lineHeight: 22,
     fontWeight: "600",
     color: Colors.light.text,
   },
 
-  collectionHint: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 18,
-    color: Colors.light.textSecondary,
-    marginTop: Spacing.two,
+  // Donation description inside the donation card
+  descriptionSection: {
+    gap: Spacing.two,
   },
 
-  // Reference
-  referenceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: Spacing.two,
-    marginBottom: Spacing.three,
-  },
-
-  referenceIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.light.backgroundElement,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.two,
-  },
-
-  referenceContent: {
-    flex: 1,
-  },
-
-  referenceLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.light.textSecondary,
-    marginBottom: 3,
-  },
-
-  referenceValue: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
+  descriptionTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 17,
+    lineHeight: 24,
     color: Colors.light.text,
-    fontWeight: "600",
   },
 
-  // Reminder
-  reminderCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: Colors.light.backgroundElement,
-    borderRadius: Radius.md,
-    padding: Spacing.three,
+  // Collection and other information sections
+  section: {
     marginBottom: Spacing.four,
   },
 
-  reminderIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  sectionTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 20,
+    lineHeight: 27,
+    color: Colors.light.text,
+    marginBottom: Spacing.two,
+  },
+
+  bodyText: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    lineHeight: 23,
+    color: Colors.light.textSecondary,
+  },
+
+  // Collection location
+  locationCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.three,
+    backgroundColor: Colors.light.backgroundElement,
+    borderRadius: Radius.md,
+    padding: Spacing.three,
+  },
+
+  locationIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
     backgroundColor: Colors.light.background,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.two,
   },
 
-  reminderText: {
+  locationContent: {
     flex: 1,
+    paddingTop: 2,
+  },
+
+  locationValue: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: "600",
+    color: Colors.light.text,
+  },
+
+  locationHint: {
     fontFamily: Fonts.body,
     fontSize: 12,
     lineHeight: 19,
     color: Colors.light.textSecondary,
+    marginTop: Spacing.two,
   },
 
-  // Actions
+  // Donation reference
+  referenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+    paddingVertical: Spacing.three,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: "#DCD2C4",
+    marginBottom: Spacing.four,
+  },
+
+  referenceLabel: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+
+  referenceValue: {
+    flexShrink: 1,
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.light.text,
+    textAlign: "right",
+  },
+
+  // Reservation actions
   actionSection: {
     marginTop: Spacing.one,
   },
 
+  actionHint: {
+    fontFamily: Fonts.heading,
+    fontSize: 16,
+    lineHeight: 23,
+    color: Colors.light.text,
+    textAlign: "center",
+    marginBottom: Spacing.three,
+  },
+
   reserveButton: {
-    minHeight: 54,
-    backgroundColor: Colors.light.primary,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.three,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.two,
+    backgroundColor: Colors.light.primary,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
   },
 
   disabledButton: {
-    backgroundColor: Colors.light.textSecondary,
-    opacity: 0.65,
+    backgroundColor: "#A9ACB0",
   },
 
   reserveButtonText: {
     fontFamily: Fonts.button,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
-    color: Colors.light.background,
+    color: "#FFFFFF",
   },
 
+  // Bottom back button
   cancelButton: {
-    minHeight: 46,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.two,
@@ -410,16 +343,27 @@ export const styles = StyleSheet.create({
 
   cancelButtonText: {
     fontFamily: Fonts.button,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: Colors.light.textSecondary,
   },
 
-  footerNote: {
+  // Servd footer
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.two,
+  },
+
+  footerText: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 11,
+    lineHeight: 17,
     color: Colors.light.textSecondary,
     textAlign: "center",
-    marginTop: Spacing.two,
   },
 });

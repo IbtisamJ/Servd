@@ -18,10 +18,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { auth } from "../config/firebase";
 import { DONATION_STATUS } from "../constants/roles";
 import { reserveDonationForNGO } from "../services/reservationService";
-
 import { Colors } from "../constants/theme";
 import { styles } from "../styles/DonationDetails.style";
 
@@ -66,7 +66,7 @@ export default function DonationDetails() {
     if (!documentId || !donationId) {
       Alert.alert(
         "Donation unavailable",
-        "We couldn't identify this donation. Please return to the donations list and try again.",
+        "This donation could not be found. Please return to available donations and try again.",
       );
       return;
     }
@@ -74,7 +74,7 @@ export default function DonationDetails() {
     if (!isAvailable) {
       Alert.alert(
         "No longer available",
-        "This donation cannot be reserved because it is no longer available.",
+        "This donation is no longer available to reserve.",
       );
       return;
     }
@@ -84,7 +84,7 @@ export default function DonationDetails() {
     if (!currentUser) {
       Alert.alert(
         "Sign in required",
-        "Please sign in to your NGO account before reserving a donation.",
+        "Please sign in to reserve this donation.",
       );
       return;
     }
@@ -92,12 +92,10 @@ export default function DonationDetails() {
     setIsReserving(true);
 
     try {
-      const ngoId = currentUser.uid;
-
       await reserveDonationForNGO(
         documentId,
         donationId,
-        ngoId,
+        currentUser.uid,
         foodName ?? "",
         collectionLocation ?? "",
       );
@@ -129,58 +127,44 @@ export default function DonationDetails() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Navigation */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to donations"
-            activeOpacity={0.75}
-          >
-            <FontAwesome5
-              name="arrow-left"
-              size={15}
-              color={Colors.light.text}
-              iconStyle="solid"
-            />
-          </TouchableOpacity>
+        {/* Back navigation */}
+        <TouchableOpacity
+          style={styles.backButton}
+          activeOpacity={0.7}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to available donations"
+        >
+          <FontAwesome5
+            name="arrow-left"
+            size={14}
+            color={Colors.light.secondary}
+            iconStyle="solid"
+          />
 
-          <Text style={styles.topBarTitle}>Donation details</Text>
+          <Text style={styles.backButtonText}>Back to Available Donations</Text>
+        </TouchableOpacity>
 
-          <View style={styles.topBarSpacer} />
-        </View>
-
-        {/* Intro */}
+        {/* Page introduction */}
         <View style={styles.introSection}>
-          <View style={styles.eyebrow}>
-            <View style={styles.eyebrowDot} />
-            <Text style={styles.eyebrowText}>
-              A little good goes a long way
-            </Text>
-          </View>
+          <Text style={styles.eyebrow}>A LITTLE GOOD GOES A LONG WAY</Text>
 
-          <Text style={styles.pageTitle}>Food worth{"\n"}sharing.</Text>
+          <Text style={styles.pageTitle}>Food worth sharing.</Text>
 
           <Text style={styles.pageDescription}>
-            Get to know this donation before reserving it for your organisation.
+            Discover the details and see how your organisation can make a
+            difference.
           </Text>
         </View>
 
-        {/* Donation summary card */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.foodIconContainer}>
-              <FontAwesome5
-                name="utensils"
-                size={23}
-                color={Colors.light.secondary}
-                iconStyle="solid"
-              />
-            </View>
+        {/* Donation overview and description */}
+        <View style={styles.donationCard}>
+          <View style={styles.statusRow}>
+            <Text style={styles.cardEyebrow}>DONATION DETAILS</Text>
 
             <View
               style={[
@@ -191,9 +175,10 @@ export default function DonationDetails() {
               <View
                 style={[
                   styles.statusDot,
-                  !isAvailable && styles.unavailableDot,
+                  !isAvailable && styles.unavailableStatusDot,
                 ]}
               />
+
               <Text
                 style={[
                   styles.statusText,
@@ -207,107 +192,80 @@ export default function DonationDetails() {
 
           <Text style={styles.foodName}>{displayValue(foodName)}</Text>
 
-          <View style={styles.categoryTag}>
-            <FontAwesome5
-              name="tag"
-              size={11}
-              color={Colors.light.secondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.categoryText}>{displayValue(category)}</Text>
-          </View>
+          <Text style={styles.categoryText}>{displayValue(category)}</Text>
 
-          <View style={styles.heroDivider} />
+          <View style={styles.cardDivider} />
 
+          {/* Quantity */}
           <View style={styles.quantityRow}>
             <View style={styles.quantityIcon}>
               <FontAwesome5
-                name="box"
-                size={15}
-                color={Colors.light.accent}
+                name="box-open"
+                size={17}
+                color={Colors.light.secondary}
                 iconStyle="solid"
               />
             </View>
 
             <View style={styles.quantityContent}>
-              <Text style={styles.quantityLabel}>Donation quantity</Text>
+              <Text style={styles.detailLabel}>QUANTITY AVAILABLE</Text>
+
               <Text style={styles.quantityValue}>{displayValue(quantity)}</Text>
             </View>
           </View>
+
+          <View style={styles.cardDivider} />
+
+          {/* Description */}
+          <View style={styles.descriptionSection}>
+            <Text style={styles.descriptionTitle}>About this donation</Text>
+
+            <Text style={styles.bodyText}>{displayValue(description)}</Text>
+          </View>
         </View>
 
-        {/* Description */}
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>About this donation</Text>
-          <View style={styles.sectionAccent} />
-        </View>
+        {/* Collection details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Collection details</Text>
 
-        <View style={styles.descriptionCard}>
-          <Text style={styles.descriptionText}>
-            {displayValue(description)}
+          <View style={styles.locationCard}>
+            <View style={styles.locationIcon}>
+              <FontAwesome5
+                name="map-marker-alt"
+                size={18}
+                color={Colors.light.secondary}
+                iconStyle="solid"
+              />
+            </View>
+
+            <View style={styles.locationContent}>
+              <Text style={styles.detailLabel}>COLLECTION LOCATION</Text>
+
+              <Text style={styles.locationValue}>
+                {displayValue(collectionLocation)}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.locationHint}>
+            Please make sure your organisation can arrange collection from this
+            location before reserving.
           </Text>
         </View>
 
-        {/* Collection information */}
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Collection information</Text>
-          <View style={styles.sectionAccent} />
-        </View>
-
-        <View style={styles.collectionCard}>
-          <View style={styles.collectionIconContainer}>
-            <FontAwesome5
-              name="map-marker-alt"
-              size={18}
-              color={Colors.light.secondary}
-              iconStyle="solid"
-            />
-          </View>
-
-          <View style={styles.collectionContent}>
-            <Text style={styles.detailLabel}>Collection location</Text>
-            <Text style={styles.detailValue}>
-              {displayValue(collectionLocation)}
-            </Text>
-            <Text style={styles.collectionHint}>
-              Please review the collection arrangements before collecting.
-            </Text>
-          </View>
-        </View>
-
-        {/* Reference information */}
+        {/* Donation reference */}
         <View style={styles.referenceRow}>
-          <View style={styles.referenceIcon}>
-            <FontAwesome5
-              name="clipboard-list"
-              size={15}
-              color={Colors.light.textSecondary}
-              iconStyle="solid"
-            />
-          </View>
+          <Text style={styles.referenceLabel}>Donation reference</Text>
 
-          <View style={styles.referenceContent}>
-            <Text style={styles.referenceLabel}>Donation reference</Text>
-            <Text style={styles.referenceValue}>
-              {displayValue(donationId)}
-            </Text>
-          </View>
+          <Text style={styles.referenceValue}>{displayValue(donationId)}</Text>
         </View>
 
-        {/* Gentle reminder */}
-        <View style={styles.reminderCard}>
-          <View style={styles.reminderIcon}>
-            <FontAwesome5 name="heart" size={16} color={Colors.light.primary} />
-          </View>
-
-          <Text style={styles.reminderText}>
-            Every donation makes a difference. Please reserve only if your
-            organisation can arrange collection.
-          </Text>
-        </View>
-
-        {/* Bottom action */}
+        {/* Reservation actions */}
         <View style={styles.actionSection}>
+          <Text style={styles.actionHint}>
+            Ready to help this food find a good home?
+          </Text>
+
           <TouchableOpacity
             style={[
               styles.reserveButton,
@@ -315,22 +273,14 @@ export default function DonationDetails() {
             ]}
             onPress={handleReserveDonation}
             disabled={!isAvailable || isReserving}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={
-              isAvailable ? "Reserve donation" : "Donation unavailable"
+              isAvailable ? "Reserve this donation" : "Donation unavailable"
             }
-            activeOpacity={0.85}
           >
             {isReserving ? (
-              <>
-                <ActivityIndicator
-                  size="small"
-                  color={Colors.light.background}
-                />
-                <Text style={styles.reserveButtonText}>
-                  Reserving donation...
-                </Text>
-              </>
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
                 <Text style={styles.reserveButtonText}>
@@ -338,11 +288,12 @@ export default function DonationDetails() {
                     ? "Reserve this donation"
                     : "Donation unavailable"}
                 </Text>
+
                 {isAvailable && (
                   <FontAwesome5
                     name="arrow-right"
-                    size={15}
-                    color={Colors.light.background}
+                    size={14}
+                    color="#FFFFFF"
                     iconStyle="solid"
                   />
                 )}
@@ -350,19 +301,31 @@ export default function DonationDetails() {
             )}
           </TouchableOpacity>
 
+          {/* Greyed back button */}
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => router.back()}
             disabled={isReserving}
-            accessibilityRole="button"
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Back to donations"
           >
             <Text style={styles.cancelButtonText}>Back to donations</Text>
           </TouchableOpacity>
 
-          <Text style={styles.footerNote}>
-            Together, we can make surplus food count.
-          </Text>
+          {/* Footer */}
+          <View style={styles.footer}>
+            <FontAwesome5
+              name="heart"
+              size={12}
+              color={Colors.light.accent}
+              iconStyle="solid"
+            />
+
+            <Text style={styles.footerText}>
+              Good food. Stronger communities. Less waste.
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
