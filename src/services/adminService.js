@@ -1,5 +1,5 @@
 import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { db } from '../firebaseConfig'; // Adjust path if needed
+import { db } from '../firebaseConfig.js'; // Adjust path if needed
 
 // 1. Approve/reject NGOs
 export const approveOrRejectNGO = async (ngoUserId, newStatus) => {

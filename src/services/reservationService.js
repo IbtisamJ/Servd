@@ -1,5 +1,5 @@
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebaseConfig'; // Adjust this import path if your Firebase config is located elsewhere
+import { db } from '../firebaseConfig.js'; // Adjust this import path if your Firebase config is located elsewhere
 
 // NGO can reserve an available food donation securely
 export const createReservation = async (donationId, ngoId, enterpriseId) => {
