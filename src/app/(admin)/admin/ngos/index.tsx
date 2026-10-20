@@ -33,7 +33,7 @@ import {
 
 import { db } from "@/config/firebase";
 import { COLLECTIONS, NGO_STATUS } from "@/constants/roles";
-import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
+import { Colors, Fonts, Radius, Spacing, MaxContentWidth } from "@/constants/theme";
 
 const colors = Colors.light;
 
@@ -48,14 +48,14 @@ type NGO = {
 };
 
 const filters = ["All", "Pending", "Approved", "Rejected"] as const;
+type NGOFilter = (typeof filters)[number];
 
 export default function NGOsPage() {
   const router = useRouter();
 
   const [ngos, setNgos] = useState<NGO[]>([]);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] =
-    useState<(typeof filters)[number]>("All");
+  const [filter, setFilter] = useState<NGOFilter>("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -96,6 +96,18 @@ export default function NGOsPage() {
   const getStatus = (ngo: NGO) =>
     (ngo.verificationStatus || NGO_STATUS.PENDING).toLowerCase();
 
+  const pendingCount = ngos.filter(
+    (ngo) => getStatus(ngo) === NGO_STATUS.PENDING,
+  ).length;
+
+  const approvedCount = ngos.filter(
+    (ngo) => getStatus(ngo) === NGO_STATUS.APPROVED,
+  ).length;
+
+  const rejectedCount = ngos.filter(
+    (ngo) => getStatus(ngo) === NGO_STATUS.REJECTED,
+  ).length;
+
   const filteredNGOs = useMemo(
     () =>
       ngos.filter((ngo) => {
@@ -130,60 +142,74 @@ export default function NGOsPage() {
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.headingRow}>
-        <View style={styles.headingText}>
-          <Text style={styles.title}>NGO management</Text>
-          <Text style={styles.subtitle}>
-            Review organisations and manage their verification status.
+      {/* Page heading */}
+      <View style={styles.pageHeader}>
+        <View style={styles.pageHeadingGroup}>
+          <Text style={styles.eyebrow}>SERVD / ADMINISTRATION</Text>
+          <Text style={styles.heading}>NGO management</Text>
+          <Text style={styles.description}>
+            Review organisations, track verification status, and manage
+            NGO registrations.
           </Text>
         </View>
 
         <Pressable
           onPress={loadNGOs}
-          style={styles.countBadge}
+          style={styles.refreshButton}
           accessibilityRole="button"
           accessibilityLabel="Refresh NGO list"
+          disabled={loading}
         >
           <FontAwesome5
             name="sync-alt"
-            size={14}
+            size={15}
             color={colors.primary}
             iconStyle="solid"
           />
         </Pressable>
       </View>
 
-      <View style={styles.summaryRow}>
-        <Summary
-          label="Pending"
-          value={
-            ngos.filter(
-              (ngo) => getStatus(ngo) === NGO_STATUS.PENDING,
-            ).length
-          }
-          color={colors.primary}
-        />
-        <Summary
-          label="Approved"
-          value={
-            ngos.filter(
-              (ngo) => getStatus(ngo) === NGO_STATUS.APPROVED,
-            ).length
-          }
-          color={colors.secondary}
-        />
-        <Summary
-          label="Rejected"
-          value={
-            ngos.filter(
-              (ngo) => getStatus(ngo) === NGO_STATUS.REJECTED,
-            ).length
-          }
-          color="#996000"
-        />
+      {/* Overview statistics */}
+      <View style={styles.summarySection}>
+        <View style={styles.sectionHeadingRow}>
+          <Text style={styles.sectionTitle}>Overview</Text>
+          <Text style={styles.mutedText}>
+            {ngos.length} registered
+          </Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Summary
+            label="Pending"
+            value={pendingCount}
+            color={colors.primary}
+            icon="clock"
+            onPress={() => setFilter("Pending")}
+            active={filter === "Pending"}
+          />
+          <Summary
+            label="Approved"
+            value={approvedCount}
+            color={colors.secondary}
+            icon="check-circle"
+            onPress={() => setFilter("Approved")}
+            active={filter === "Approved"}
+          />
+          <Summary
+            label="Rejected"
+            value={rejectedCount}
+            color="#996000"
+            icon="times-circle"
+            onPress={() => setFilter("Rejected")}
+            active={filter === "Rejected"}
+          />
+        </View>
       </View>
 
+      {/* Search */}
       <View style={styles.searchBox}>
         <FontAwesome5
           name="search"
@@ -191,16 +217,23 @@ export default function NGOsPage() {
           color={colors.textSecondary}
           iconStyle="solid"
         />
+
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search NGOs..."
+          placeholder="Search NGOs, registration numbers..."
           placeholderTextColor={colors.textSecondary}
           style={styles.searchInput}
           autoCapitalize="none"
+          returnKeyType="search"
         />
+
         {search.length > 0 && (
-          <Pressable onPress={() => setSearch("")}>
+          <Pressable
+            onPress={() => setSearch("")}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <FontAwesome5
               name="times-circle"
               size={16}
@@ -211,174 +244,374 @@ export default function NGOsPage() {
         )}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-      >
-        {filters.map((item) => (
-          <Pressable
-            key={item}
-            onPress={() => setFilter(item)}
-            style={[
-              styles.filterButton,
-              filter === item && styles.filterActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === item && styles.filterTextActive,
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {/* Status filters */}
+      <View style={styles.filterSection}>
+        <Text style={styles.filterHeading}>Filter by status</Text>
 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filters}
+        >
+          {filters.map((item) => {
+            const selected = filter === item;
+
+            const count =
+              item === "All"
+                ? ngos.length
+                : item === "Pending"
+                  ? pendingCount
+                  : item === "Approved"
+                    ? approvedCount
+                    : rejectedCount;
+
+            return (
+              <Pressable
+                key={item}
+                onPress={() => setFilter(item)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                style={({ pressed }) => [
+                  styles.filter,
+                  selected && styles.filterActive,
+                  pressed && styles.filterPressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    selected && styles.filterTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+
+                <View
+                  style={[
+                    styles.filterCount,
+                    selected && styles.filterCountActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterCountText,
+                      selected && styles.filterCountTextActive,
+                    ]}
+                  >
+                    {count}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Organisation list */}
       <View style={styles.resultsHeader}>
-        <Text style={styles.sectionTitle}>Organisations</Text>
-        <Text style={styles.resultCount}>
-          {filteredNGOs.length} results
-        </Text>
+        <View style={styles.resultsHeading}>
+          <Text style={styles.sectionTitle}>Organisations</Text>
+          <Text style={styles.resultsDescription}>
+            NGO registrations and verification details
+          </Text>
+        </View>
+
+        {!loading && !error && (
+          <Text style={styles.resultCount}>
+            {filteredNGOs.length}{" "}
+            {filteredNGOs.length === 1 ? "result" : "results"}
+          </Text>
+        )}
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          color={colors.primary}
-          style={styles.loader}
-        />
+        <View style={styles.stateContainer}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.stateText}>Loading organisations...</Text>
+        </View>
       ) : error ? (
-        <Pressable onPress={loadNGOs} style={styles.emptyState}>
+        <Pressable
+          onPress={loadNGOs}
+          style={styles.stateContainer}
+          accessibilityRole="button"
+        >
+          <FontAwesome5
+            name="exclamation-circle"
+            size={26}
+            color={colors.error}
+            iconStyle="solid"
+          />
           <Text style={styles.error}>{error}</Text>
-          <Text style={styles.subtitle}>Tap to retry</Text>
+          <Text style={styles.retry}>Tap to retry</Text>
         </Pressable>
       ) : filteredNGOs.length === 0 ? (
-        <View style={styles.emptyState}>
+        <View style={styles.stateContainer}>
           <FontAwesome5
             name="search"
-            size={24}
+            size={25}
             color={colors.textSecondary}
             iconStyle="solid"
           />
           <Text style={styles.emptyTitle}>No NGOs found</Text>
-          <Text style={styles.subtitle}>
-            Try another search or filter.
+          <Text style={styles.stateText}>
+            {search.trim() || filter !== "All"
+              ? "Try another search or change the status filter."
+              : "Registered organisations will appear here."}
           </Text>
+
+          {(search.trim() !== "" || filter !== "All") && (
+            <Pressable
+              onPress={() => {
+                setSearch("");
+                setFilter("All");
+              }}
+              style={styles.clearFiltersButton}
+            >
+              <Text style={styles.clearFiltersText}>
+                Clear filters
+              </Text>
+            </Pressable>
+          )}
         </View>
       ) : (
-        filteredNGOs.map((ngo) => {
-          const status = getStatus(ngo);
+        <View style={styles.ngoList}>
+          {filteredNGOs.map((ngo) => {
+            const status = getStatus(ngo);
+            const formattedStatus =
+              status.charAt(0).toUpperCase() + status.slice(1);
 
-          return (
-            <Pressable
-              key={ngo.id}
-              onPress={() =>
-                router.push(`/admin/ngos/${ngo.id}` as never)
-              }
-              style={styles.ngoCard}
-            >
-              <View style={styles.ngoIcon}>
+            return (
+              <Pressable
+                key={ngo.id}
+                onPress={() =>
+                  router.push(`/admin/ngos/${ngo.id}` as never)
+                }
+                style={styles.ngoCard}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${getName(ngo)}`}
+              >
+                <View style={styles.ngoIcon}>
+                  <FontAwesome5
+                    name="building"
+                    size={18}
+                    color={colors.secondary}
+                    iconStyle="solid"
+                  />
+                </View>
+
+                <View style={styles.ngoInfo}>
+                  <Text style={styles.ngoName}>
+                    {getName(ngo)}
+                  </Text>
+
+                  <Text style={styles.ngoEmail}>
+                    {ngo.contactInfo ||
+                      "No contact information provided"}
+                  </Text>
+
+                  <Text style={styles.ngoNumber}>
+                    {getNumber(ngo) || "No registration number"}
+                  </Text>
+
+                  <View
+                    style={[styles.statusBadge, statusStyle(status)]}
+                  >
+                    <View
+                      style={[
+                        styles.statusDot,
+                        status === NGO_STATUS.APPROVED
+                          ? styles.approvedDot
+                          : status === NGO_STATUS.REJECTED
+                            ? styles.rejectedDot
+                            : styles.pendingDot,
+                      ]}
+                    />
+                    <Text style={styles.statusText}>
+                      {formattedStatus}
+                    </Text>
+                  </View>
+                </View>
+
                 <FontAwesome5
-                  name="building"
-                  size={18}
-                  color={colors.secondary}
+                  name="chevron-right"
+                  size={13}
+                  color={colors.textSecondary}
                   iconStyle="solid"
                 />
-              </View>
-
-              <View style={styles.ngoInfo}>
-                <Text style={styles.ngoName}>
-                  {getName(ngo)}
-                </Text>
-                <Text style={styles.ngoEmail}>
-                  {ngo.contactInfo || "No contact information provided"}
-                </Text>
-                <Text style={styles.ngoNumber}>
-                  {getNumber(ngo) || "No registration number"}
-                </Text>
-
-                <View
-                  style={[styles.statusBadge, statusStyle(status)]}
-                >
-                  <Text style={styles.statusText}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Text>
-                </View>
-              </View>
-
-              <FontAwesome5
-                name="chevron-right"
-                size={13}
-                color={colors.textSecondary}
-                iconStyle="solid"
-              />
-            </Pressable>
-          );
-        })
+              </Pressable>
+            );
+          })}
+        </View>
       )}
     </ScrollView>
   );
 }
 
+type SummaryIcon = "clock" | "check-circle" | "times-circle";
+
 function Summary({
   label,
   value,
   color,
+  icon,
+  onPress,
+  active,
 }: {
   label: string;
   value: number;
   color: string;
+  icon: SummaryIcon;
+  onPress: () => void;
+  active: boolean;
 }) {
   return (
-    <View style={styles.summaryCard}>
-      <Text style={[styles.summaryValue, { color }]}>{value}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.summaryCard,
+        active && styles.summaryCardActive,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}. Filter NGOs by ${label.toLowerCase()}`}
+    >
+      <View style={styles.summaryTopRow}>
+        <View
+          style={[
+            styles.summaryIcon,
+            { backgroundColor: `${color}15` },
+          ]}
+        >
+          <FontAwesome5
+            name={icon}
+            size={14}
+            color={color}
+            iconStyle="solid"
+          />
+        </View>
+
+        <Text style={[styles.summaryValue, { color }]}>
+          {value}
+        </Text>
+      </View>
+
       <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   content: {
-    padding: Spacing.three,
+    flexGrow: 1,
+    width: "100%",
+    maxWidth: MaxContentWidth,
+    alignSelf: "center",
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.six,
     gap: Spacing.three,
+    backgroundColor: "#FFFFFF",
   },
-  headingRow: {
+
+  // Page heading
+  pageHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: Spacing.three,
   },
-  headingText: { flex: 1 },
-  title: {
+  pageHeadingGroup: {
+    flex: 1,
+    gap: Spacing.one,
+  },
+  eyebrow: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: colors.secondary,
+  },
+  heading: {
     fontFamily: Fonts.heading,
-    fontSize: 25,
+    fontSize: 28,
     fontWeight: "700",
     color: colors.text,
   },
-  subtitle: {
+  description: {
     fontFamily: Fonts.body,
     fontSize: 13,
+    lineHeight: 20,
     color: colors.textSecondary,
-    marginTop: 4,
   },
-  countBadge: {
-    backgroundColor: "#FFFFFF",
+  refreshButton: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#EAE7E1",
-    padding: Spacing.three,
+    borderColor: colors.backgroundElement,
     borderRadius: Radius.md,
   },
-  summaryRow: { flexDirection: "row", gap: Spacing.two },
+
+  // Overview
+  summarySection: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    backgroundColor: colors.background,
+    borderRadius: Radius.lg,
+  },
+  sectionHeadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+  },
+  sectionTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  mutedText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
   summaryCard: {
     flex: 1,
-    padding: Spacing.three,
+    minWidth: 0,
+    padding: Spacing.two,
+    gap: Spacing.two,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#EAE7E1",
+    borderColor: colors.backgroundElement,
     borderRadius: Radius.md,
+  },
+  summaryCardActive: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  summaryTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: Spacing.one,
+  },
+  summaryIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
   summaryValue: {
     fontFamily: Fonts.heading,
@@ -389,79 +622,142 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 4,
   },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EAE7E1",
-    borderRadius: Radius.md,
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: 46,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: colors.text,
-  },
-  filters: { gap: Spacing.two },
-  filterButton: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: "#EAE7E1",
-    backgroundColor: "#FFFFFF",
-  },
-  filterActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  filterTextActive: { color: "#FFFFFF", fontWeight: "700" },
+
+  /* Search — match the Donations screen */
+searchBox: {
+  minHeight: 46,
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+  paddingHorizontal: 14,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: colors.backgroundElement,
+  borderRadius: Radius.md,
+},
+searchInput: {
+  flex: 1,
+  minWidth: 0,
+  paddingVertical: 10,
+  fontFamily: Fonts.body,
+  fontSize: 13,
+  color: colors.text,
+},
+clearSearch: {
+  padding: 4,
+},
+
+/* Status filters */
+filterSection: {
+  gap: 8,
+},
+filterHeading: {
+  fontFamily: Fonts.body,
+  fontSize: 12,
+  fontWeight: "700",
+  color: colors.text,
+},
+filters: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  gap: 7,
+},
+filter: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 7,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: colors.backgroundElement,
+  borderRadius: 20,
+},
+filterActive: {
+  backgroundColor: colors.primary,
+  borderColor: colors.primary,
+},
+filterPressed: {
+  opacity: 0.75,
+},
+filterText: {
+  fontFamily: Fonts.body,
+  fontSize: 11,
+  color: colors.textSecondary,
+},
+filterTextActive: {
+  fontWeight: "700",
+  color: "#FFFFFF",
+},
+filterCount: {
+  minWidth: 18,
+  height: 18,
+  paddingHorizontal: 4,
+  borderRadius: 9,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: colors.backgroundElement,
+},
+filterCountActive: {
+  backgroundColor: "rgba(255,255,255,0.22)",
+},
+filterCountText: {
+  fontFamily: Fonts.body,
+  fontSize: 10,
+  fontWeight: "700",
+  color: colors.textSecondary,
+},
+filterCountTextActive: {
+  color: "#FFFFFF",
+},
+
+  // Organisation list
   resultsHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: Spacing.two,
   },
-  sectionTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
+  resultsHeading: {
+    flex: 1,
+  },
+  resultsDescription: {
+    marginTop: Spacing.half,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   resultCount: {
     fontFamily: Fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
   },
+  ngoList: {
+    gap: Spacing.two,
+  },
   ngoCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
     padding: Spacing.three,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#EAE7E1",
+    borderColor: colors.backgroundElement,
     borderRadius: Radius.lg,
   },
   ngoIcon: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: Radius.md,
     backgroundColor: "#E9F4F1",
     alignItems: "center",
     justifyContent: "center",
   },
-  ngoInfo: { flex: 1 },
+  ngoInfo: {
+    flex: 1,
+    gap: Spacing.half,
+  },
   ngoName: {
     fontFamily: Fonts.body,
     fontSize: 14,
@@ -471,37 +767,74 @@ const styles = StyleSheet.create({
   ngoEmail: {
     fontFamily: Fonts.body,
     fontSize: 12,
+    lineHeight: 17,
     color: colors.textSecondary,
-    marginTop: 3,
   },
   ngoNumber: {
     fontFamily: Fonts.body,
     fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 2,
   },
+
+  // Verification badges
   statusBadge: {
     alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
     paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: Radius.sm,
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
   },
-  pending: { backgroundColor: "#FCEDEA" },
-  approved: { backgroundColor: "#E9F4F1" },
-  rejected: { backgroundColor: "#FFF1DA" },
+  pending: {
+    backgroundColor: "#FCEDEA",
+  },
+  approved: {
+    backgroundColor: "#E9F4F1",
+  },
+  rejected: {
+    backgroundColor: "#FFF1DA",
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  pendingDot: {
+    backgroundColor: colors.primary,
+  },
+  approvedDot: {
+    backgroundColor: colors.secondary,
+  },
+  rejectedDot: {
+    backgroundColor: "#996000",
+  },
   statusText: {
     fontFamily: Fonts.body,
     fontSize: 11,
     fontWeight: "700",
     color: colors.text,
   },
-  emptyState: {
+
+  // Loading, error and empty states
+  stateContainer: {
     alignItems: "center",
-    padding: Spacing.five,
-    backgroundColor: "#FFFFFF",
-    borderRadius: Radius.lg,
+    justifyContent: "center",
     gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.five,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+  },
+  stateText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+    textAlign: "center",
   },
   emptyTitle: {
     fontFamily: Fonts.heading,
@@ -510,8 +843,29 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   error: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
     color: colors.error,
     textAlign: "center",
   },
-  loader: { marginTop: 40 },
+  retry: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  clearFiltersButton: {
+    marginTop: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.md,
+    backgroundColor: colors.backgroundElement,
+  },
+  clearFiltersText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
+  },
 });
