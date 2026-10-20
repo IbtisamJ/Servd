@@ -1,18 +1,9 @@
 /**
- * User List Screen
+ * Admin Users List Screen
  *
- * Retrieves registered user profiles from Firestore and
- * displays them for administrator review.
- *
- * Responsibilities:
- * - Loads user documents from Firestore.
- * - Displays each user's name, email, role, and account status.
- * - Supports searching by name, email, and user document ID.
- * - Filters users by enterprise, NGO, and admin role.
- * - Displays the total number of registered users.
- * - Supports pull-to-refresh.
- * - Handles loading, error, and empty-list states.
- * - Navigates to the selected user's detail screen.
+ * Displays registered users for administrator review.
+ * Supports searching, role filtering, pull-to-refresh,
+ * and navigation to individual user details.
  */
 
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
@@ -21,9 +12,9 @@ import { collection, getDocs } from "firebase/firestore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -32,8 +23,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { db } from "@/config/firebase";
-import { Colors, Radius, Spacing } from "@/constants/theme";
+import {
+  Colors,
+  Fonts,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+} from "@/constants/theme";
 import { COLLECTIONS, ROLES } from "@/constants/roles";
+
+const colors = Colors.light;
 
 type AdminUser = {
   id: string;
@@ -47,7 +46,7 @@ type AdminUser = {
 type RoleFilter = "all" | "enterprise" | "ngo" | "admin";
 
 const FILTERS: { label: string; value: RoleFilter }[] = [
-  { label: "All", value: "all" },
+  { label: "All users", value: "all" },
   { label: "Enterprises", value: "enterprise" },
   { label: "NGOs", value: "ngo" },
   { label: "Admins", value: "admin" },
@@ -57,41 +56,39 @@ export default function AdminUsersScreen() {
   const router = useRouter();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
-  const loadUsers = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-
-    setError(null);
-
+  const fetchUsers = useCallback(async () => {
     try {
-      // Admins can read all documents in the users collection.
+      setError(null);
+
       const snapshot = await getDocs(collection(db, COLLECTIONS.USERS));
 
-      const result: AdminUser[] = snapshot.docs.map((item) => ({
-        id: item.id,
-        ...(item.data() as Omit<AdminUser, "id">),
-      }));
+      const fetchedUsers: AdminUser[] = snapshot.docs.map((document) => {
+        const data = document.data();
 
-      result.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+        return {
+          id: document.id,
+          userId: data.userId,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          accountStatus: data.accountStatus,
+        };
+      });
 
-      setUsers(result);
-    } catch (err) {
-      console.error("Failed to load users:", err);
-
-      setError(
-        err instanceof Error
-          ? `Could not load users: ${err.message}`
-          : "Could not load users. An unexpected error occurred.",
+      fetchedUsers.sort((a, b) =>
+        (a.name || "").localeCompare(b.name || ""),
       );
+
+      setUsers(fetchedUsers);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setError("Unable to load users. Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -99,25 +96,42 @@ export default function AdminUsersScreen() {
   }, []);
 
   useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
+    void fetchUsers();
+  }, [fetchUsers]);
 
-  // Filter the list by role and search across name, email, and user ID.
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void fetchUsers();
+  }, [fetchUsers]);
+
+  const roleCounts = useMemo(
+    () => ({
+      all: users.length,
+      enterprise: users.filter((user) => user.role === ROLES.ENTERPRISE)
+        .length,
+      ngo: users.filter((user) => user.role === ROLES.NGO).length,
+      admin: users.filter((user) => user.role === ROLES.ADMIN).length,
+    }),
+    [users],
+  );
+
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesRole =
+        roleFilter === "all" || user.role === roleFilter;
 
       const matchesSearch =
         !query ||
-        (user.name ?? "").toLowerCase().includes(query) ||
-        (user.email ?? "").toLowerCase().includes(query) ||
-        user.id.toLowerCase().includes(query);
+        (user.name || "").toLowerCase().includes(query) ||
+        (user.email || "").toLowerCase().includes(query) ||
+        user.id.toLowerCase().includes(query) ||
+        (user.userId || "").toLowerCase().includes(query);
 
       return matchesRole && matchesSearch;
     });
-  }, [users, search, roleFilter]);
+  }, [users, roleFilter, search]);
 
   const getRoleLabel = (role?: string) => {
     switch (role) {
@@ -128,203 +142,349 @@ export default function AdminUsersScreen() {
       case ROLES.ADMIN:
         return "Admin";
       default:
-        return "Unknown role";
+        return role || "Unknown";
     }
   };
 
-  const getStatusColor = (status?: string) => {
-    return status === "active" ? "#2E7D32" : Colors.light.error;
+  const getStatusLabel = (status?: string) => {
+    if (!status) return "Unknown";
+
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  const renderUser = ({ item }: { item: AdminUser }) => (
+  const getStatusColor = (status?: string) =>
+    status === "active" ? colors.accent : colors.error;
+
+  const renderUser = (item: AdminUser) => (
     <Pressable
-      style={styles.userCard}
-      onPress={() => router.push(`/admin/users/${item.id}` as never)}
+      key={item.id}
+      style={({ pressed }) => [
+        styles.userCard,
+        pressed && styles.userCardPressed,
+      ]}
+      onPress={() => router.push(`/admin/users/${item.id}`)}
       accessibilityRole="button"
-      accessibilityLabel={`View ${item.name ?? "user"} details`}
+      accessibilityLabel={`View ${item.name || "user"} details`}
     >
-      <View style={styles.avatar}>
+      <View style={styles.userIconContainer}>
         <FontAwesome5
           name="user"
-          size={19}
-          color={Colors.light.primary}
+          size={18}
+          color={colors.primary}
           iconStyle="solid"
         />
       </View>
 
       <View style={styles.userInfo}>
         <Text style={styles.userName} numberOfLines={1}>
-          {item.name?.trim() || "Unnamed user"}
+          {item.name || "Unnamed user"}
         </Text>
 
         <Text style={styles.userEmail} numberOfLines={1}>
-          {item.email || "No email recorded"}
+          {item.email || "No email provided"}
         </Text>
 
-        <View style={styles.metaRow}>
+        <View style={styles.userMeta}>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{getRoleLabel(item.role)}</Text>
+            <Text style={styles.roleBadgeText}>
+              {getRoleLabel(item.role)}
+            </Text>
           </View>
 
-          <Text
-            style={[
-              styles.statusText,
-              { color: getStatusColor(item.accountStatus) },
-            ]}
-          >
-            {item.accountStatus === "active"
-              ? "Active"
-              : item.accountStatus === "suspended"
-                ? "Suspended"
-                : "Unknown status"}
-          </Text>
+          <View style={styles.statusContainer}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: getStatusColor(item.accountStatus) },
+              ]}
+            />
+            <Text style={styles.statusText}>
+              {getStatusLabel(item.accountStatus)}
+            </Text>
+          </View>
         </View>
+
+        <Text style={styles.userId} numberOfLines={1}>
+          ID: {item.userId || item.id}
+        </Text>
       </View>
 
       <FontAwesome5
         name="chevron-right"
-        size={14}
-        color={Colors.light.textSecondary}
+        size={13}
+        color={colors.textSecondary}
         iconStyle="solid"
       />
     </Pressable>
   );
+  
+    return (
+  <SafeAreaView style={styles.safeArea} edges={[]}>
+      <ScrollView
+        style={styles.page}
+        contentContainerStyle={styles.pageContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <View style={styles.pageHeader}>
+            <Text style={styles.eyebrow}>SERVD / MANAGEMENT</Text>
+            <Text style={styles.heading}>Users</Text>
+            <Text style={styles.subtitle}>
+              Manage registered enterprises, NGOs, and administrators.
+            </Text>
+          </View>
 
-  return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
-      <View style={styles.container}>
-        <Text style={styles.heading}>Users</Text>
-        <Text style={styles.subtitle}>
-          Manage registered enterprises, NGOs, and administrators.
-        </Text>
+          {/* Overview */}
+          <View style={styles.overviewSection}>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionTitle}>Overview</Text>
+              <Text style={styles.registeredCount}>
+                {users.length} registered
+              </Text>
+            </View>
 
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}>
+            <View style={styles.overviewGrid}>
+              <View style={styles.overviewCard}>
+                <View style={styles.overviewCardTop}>
+                  <View
+                    style={[
+                      styles.overviewIconContainer,
+                      styles.totalIconContainer,
+                    ]}
+                  >
+                    <FontAwesome5
+                      name="users"
+                      size={15}
+                      color={colors.primary}
+                      iconStyle="solid"
+                    />
+                  </View>
+                  <Text style={[styles.overviewCount, { color: colors.primary }]}>
+                    {roleCounts.all}
+                  </Text>
+                </View>
+                <Text style={styles.overviewLabel}>Total users</Text>
+              </View>
+
+              <View style={styles.overviewCard}>
+                <View style={styles.overviewCardTop}>
+                  <View
+                    style={[
+                      styles.overviewIconContainer,
+                      styles.enterpriseIconContainer,
+                    ]}
+                  >
+                    <FontAwesome5
+                      name="building"
+                      size={15}
+                      color={colors.secondary}
+                      iconStyle="solid"
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.overviewCount,
+                      { color: colors.secondary },
+                    ]}
+                  >
+                    {roleCounts.enterprise}
+                  </Text>
+                </View>
+                <Text style={styles.overviewLabel}>Enterprises</Text>
+              </View>
+
+              <View style={styles.overviewCard}>
+                <View style={styles.overviewCardTop}>
+                  <View
+                    style={[
+                      styles.overviewIconContainer,
+                      styles.ngoIconContainer,
+                    ]}
+                  >
+                    <FontAwesome5
+                      name="hand-holding-heart"
+                      size={15}
+                      color={colors.accent}
+                      iconStyle="solid"
+                    />
+                  </View>
+                  <Text
+                    style={[styles.overviewCount, { color: colors.accent }]}
+                  >
+                    {roleCounts.ngo}
+                  </Text>
+                </View>
+                <Text style={styles.overviewLabel}>NGOs</Text>
+              </View>
+
+              <View style={styles.overviewCard}>
+                <View style={styles.overviewCardTop}>
+                  <View
+                    style={[
+                      styles.overviewIconContainer,
+                      styles.adminIconContainer,
+                    ]}
+                  >
+                    <FontAwesome5
+                      name="user-shield"
+                      size={15}
+                      color={colors.textSecondary}
+                      iconStyle="solid"
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.overviewCount,
+                      { color: colors.text },
+                    ]}
+                  >
+                    {roleCounts.admin}
+                  </Text>
+                </View>
+                <Text style={styles.overviewLabel}>Admins</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Search */}
+          <View style={styles.searchContainer}>
             <FontAwesome5
-              name="users"
-              size={22}
-              color={Colors.light.primary}
+              name="search"
+              size={15}
+              color={colors.textSecondary}
               iconStyle="solid"
             />
-          </View>
-
-          <View>
-            <Text style={styles.summaryLabel}>Registered users</Text>
-            <Text style={styles.summaryCount}>{users.length}</Text>
-          </View>
-        </View>
-
-        <View style={styles.searchContainer}>
-          <FontAwesome5
-            name="search"
-            size={16}
-            color={Colors.light.textSecondary}
-            iconStyle="solid"
-          />
-
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search name, email, or ID..."
-            placeholderTextColor={Colors.light.textSecondary}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-            accessibilityLabel="Search users"
-          />
-
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch("")}>
-              <FontAwesome5
-                name="times-circle"
-                size={17}
-                color={Colors.light.textSecondary}
-                iconStyle="solid"
-              />
-            </Pressable>
-          )}
-        </View>
-
-        <View style={styles.filterRow}>
-          {FILTERS.map((filter) => {
-            const selected = roleFilter === filter.value;
-
-            return (
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search name, email, or ID..."
+              placeholderTextColor={colors.textSecondary}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel="Search users"
+            />
+            {search.length > 0 && (
               <Pressable
-                key={filter.value}
-                onPress={() => setRoleFilter(filter.value)}
-                style={[
-                  styles.filterButton,
-                  selected && styles.filterButtonSelected,
-                ]}
+                onPress={() => setSearch("")}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                hitSlop={8}
               >
-                <Text
-                  style={[
-                    styles.filterText,
-                    selected && styles.filterTextSelected,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {loading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator size="large" color={Colors.light.primary} />
-            <Text style={styles.stateText}>Loading users...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerState}>
-            <FontAwesome5
-              name="exclamation-circle"
-              size={30}
-              color={Colors.light.error}
-              iconStyle="solid"
-            />
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable
-              style={styles.retryButton}
-              onPress={() => void loadUsers()}
-            >
-              <Text style={styles.retryText}>Try again</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredUsers}
-            keyExtractor={(item) => item.id}
-            renderItem={renderUser}
-            contentContainerStyle={
-              filteredUsers.length === 0 ? styles.emptyList : styles.listContent
-            }
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => void loadUsers(true)}
-                tintColor={Colors.light.primary}
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.centerState}>
                 <FontAwesome5
-                  name="users"
-                  size={30}
-                  color={Colors.light.textSecondary}
+                  name="times-circle"
+                  size={16}
+                  color={colors.textSecondary}
                   iconStyle="solid"
                 />
-                <Text style={styles.emptyTitle}>No users found</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Role filters */}
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterHeading}>FILTER BY ROLE</Text>
+            <Text style={styles.filterCount}>
+              {filteredUsers.length} users
+            </Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterList}
+          >
+            {FILTERS.map((filter) => {
+              const active = roleFilter === filter.value;
+
+              return (
+                <Pressable
+                  key={filter.value}
+                  onPress={() => setRoleFilter(filter.value)}
+                  style={({ pressed }) => [
+                    styles.filterPill,
+                    active && styles.filterPillActive,
+                    pressed && styles.filterPillPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      active && styles.filterPillTextActive,
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.filterPillCount,
+                      active && styles.filterPillCountActive,
+                    ]}
+                  >
+                    {roleCounts[filter.value]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Users list */}
+          <View style={styles.userList}>
+            {loading ? (
+              <View style={styles.stateContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.stateText}>Loading users...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.stateContainer}>
+                <FontAwesome5
+                  name="exclamation-circle"
+                  size={25}
+                  color={colors.error}
+                  iconStyle="solid"
+                />
+                <Text style={styles.stateText}>{error}</Text>
+                <Pressable
+                  style={styles.retryButton}
+                  onPress={() => {
+                    setLoading(true);
+                    void fetchUsers();
+                  }}
+                >
+                  <Text style={styles.retryButtonText}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : filteredUsers.length === 0 ? (
+              <View style={styles.stateContainer}>
+                <FontAwesome5
+                  name="users"
+                  size={25}
+                  color={colors.textSecondary}
+                  iconStyle="solid"
+                />
+                <Text style={styles.stateTitle}>No users found</Text>
                 <Text style={styles.stateText}>
-                  Try a different search or role filter.
+                  {search
+                    ? "Try adjusting your search."
+                    : "There are no users in this category yet."}
                 </Text>
               </View>
-            }
-          />
-        )}
-      </View>
+            ) : (
+              filteredUsers.map(renderUser)
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -332,186 +492,325 @@ export default function AdminUsersScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
-  container: {
+  page: {
     flex: 1,
-    padding: Spacing.three,
+    backgroundColor: "#FFFFFF",
+  },
+pageContent: {
+  flexGrow: 1,
+  paddingHorizontal: Spacing.three,
+  paddingTop: Spacing.two, 
+  paddingBottom: Spacing.six,
+},
+  content: {
+    width: "100%",
+    maxWidth: MaxContentWidth,
+    alignSelf: "center",
+  },
+  pageHeader: {
+    marginBottom: Spacing.four,
+  },
+  eyebrow: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: colors.secondary,
+    marginBottom: Spacing.one,
   },
   heading: {
-    fontSize: 28,
+    fontFamily: Fonts.heading,
+    fontSize: 30,
     fontWeight: "700",
-    color: Colors.light.text,
+    color: colors.text,
     marginBottom: Spacing.one,
   },
   subtitle: {
+    fontFamily: Fonts.body,
     fontSize: 14,
-    lineHeight: 20,
-    color: Colors.light.textSecondary,
-    marginBottom: Spacing.three,
+    lineHeight: 21,
+    color: colors.textSecondary,
   },
-  summaryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
+
+  /* NGO-style overview section */
+  overviewSection: {
+    backgroundColor: colors.background,
     padding: Spacing.three,
-    backgroundColor: Colors.light.backgroundElement,
     borderRadius: Radius.lg,
     marginBottom: Spacing.three,
+    gap: Spacing.two,
   },
-  summaryIcon: {
-    width: 48,
-    height: 48,
+  sectionHeadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+  },
+  sectionTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  registeredCount: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  overviewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.two,
+  },
+  overviewCard: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    minWidth: 0,
+    padding: Spacing.two,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
     borderRadius: Radius.md,
-    backgroundColor: Colors.light.background,
+    gap: Spacing.two,
+  },
+  overviewCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+  },
+  overviewIconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
   },
-  summaryLabel: {
-    color: Colors.light.textSecondary,
-    fontSize: 13,
+  totalIconContainer: {
+    backgroundColor: "#FBE9E7",
   },
-  summaryCount: {
-    color: Colors.light.text,
+  enterpriseIconContainer: {
+    backgroundColor: "#E0F2F1",
+  },
+  ngoIconContainer: {
+    backgroundColor: "#EDF3E5",
+  },
+  adminIconContainer: {
+    backgroundColor: colors.backgroundSelected,
+  },
+  overviewCount: {
+    fontFamily: Fonts.heading,
     fontSize: 24,
     fontWeight: "700",
-    marginTop: 2,
   },
+  overviewLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+
+  /* Search */
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
-    borderWidth: 1,
-    borderColor: Colors.light.backgroundElement,
     backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
-    marginBottom: Spacing.three,
     minHeight: 48,
+    marginBottom: Spacing.three,
   },
   searchInput: {
     flex: 1,
-    color: Colors.light.text,
+    fontFamily: Fonts.body,
     fontSize: 14,
+    color: colors.text,
     paddingVertical: Spacing.two,
-  },
-  filterRow: {
+    outlineStyle: "none",
+  } as any,
+
+  /* Role filters */
+  filterHeader: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.two,
+  },
+  filterHeading: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: colors.textSecondary,
+  },
+  filterCount: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  filterList: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.two,
-    marginBottom: Spacing.three,
+    paddingBottom: Spacing.three,
   },
-  filterButton: {
-    paddingVertical: Spacing.two,
+  filterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    minHeight: 38,
     paddingHorizontal: Spacing.three,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.light.backgroundElement,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    backgroundColor: "#FFFFFF",
   },
-  filterButtonSelected: {
-    backgroundColor: Colors.light.primary,
+  filterPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  filterText: {
-    color: Colors.light.textSecondary,
+  filterPillPressed: {
+    opacity: 0.78,
+  },
+  filterPillText: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     fontWeight: "600",
+    color: colors.textSecondary,
   },
-  filterTextSelected: {
+  filterPillTextActive: {
     color: "#FFFFFF",
   },
-  listContent: {
-    paddingBottom: Spacing.five,
-    gap: Spacing.two,
+  filterPillCount: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textSecondary,
   },
-  emptyList: {
-    flexGrow: 1,
-    paddingBottom: Spacing.five,
+  filterPillCountActive: {
+    color: "#FFFFFF",
+  },
+
+  /* User cards */
+  userList: {
+    gap: Spacing.two,
   },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
     padding: Spacing.three,
-    backgroundColor: "#FFFFFF",
-    borderRadius: Radius.lg,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: Colors.light.backgroundElement,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
   },
-  avatar: {
+  userCardPressed: {
+    opacity: 0.75,
+  },
+  userIconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: Radius.md,
+    backgroundColor: "#FBE9E7",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.light.backgroundElement,
   },
   userInfo: {
     flex: 1,
     gap: Spacing.one,
   },
   userName: {
-    color: Colors.light.text,
-    fontSize: 15,
+    fontFamily: Fonts.body,
+    fontSize: 14,
     fontWeight: "700",
+    color: colors.text,
   },
   userEmail: {
-    color: Colors.light.textSecondary,
+    fontFamily: Fonts.body,
     fontSize: 12,
+    color: colors.textSecondary,
   },
-  metaRow: {
+  userMeta: {
     flexDirection: "row",
-    alignItems: "center",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: Spacing.two,
     marginTop: Spacing.one,
   },
   roleBadge: {
-    paddingVertical: 3,
-    paddingHorizontal: Spacing.two,
-    backgroundColor: Colors.light.backgroundElement,
+    backgroundColor: "#E0F2F1",
     borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
   },
-  roleText: {
-    color: Colors.light.text,
-    fontSize: 11,
-    fontWeight: "600",
+  roleBadgeText: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.secondary,
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
   },
-  centerState: {
-    flexGrow: 1,
+  userId: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: Spacing.one,
+  },
+
+  /* Loading, error, and empty states */
+  stateContainer: {
     alignItems: "center",
     justifyContent: "center",
-    padding: Spacing.four,
+    paddingVertical: Spacing.six,
+    paddingHorizontal: Spacing.four,
     gap: Spacing.two,
   },
-  stateText: {
-    color: Colors.light.textSecondary,
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  errorText: {
-    color: Colors.light.error,
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  emptyTitle: {
-    color: Colors.light.text,
-    fontSize: 16,
+  stateTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 17,
     fontWeight: "700",
+    color: colors.text,
+  },
+  stateText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+    textAlign: "center",
   },
   retryButton: {
     marginTop: Spacing.two,
-    backgroundColor: Colors.light.primary,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
   },
-  retryText: {
-    color: "#FFFFFF",
+  retryButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
     fontWeight: "700",
+    color: "#FFFFFF",
   },
 });
