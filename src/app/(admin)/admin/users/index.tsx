@@ -73,7 +73,7 @@ export default function AdminUsersScreen() {
     setError(null);
 
     try {
-      // Admins can read all documents in the users collection under your rules.
+      // Admins can read all documents in the users collection.
       const snapshot = await getDocs(collection(db, COLLECTIONS.USERS));
 
       const result: AdminUser[] = snapshot.docs.map((item) => ({
@@ -81,15 +81,16 @@ export default function AdminUsersScreen() {
         ...(item.data() as Omit<AdminUser, "id">),
       }));
 
-      result.sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? "")
-      );
+      result.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
       setUsers(result);
     } catch (err) {
       console.error("Failed to load users:", err);
+
       setError(
-        "Could not load users. Make sure you're signed in with an admin account and have permission to read users."
+        err instanceof Error
+          ? `Could not load users: ${err.message}`
+          : "Could not load users. An unexpected error occurred.",
       );
     } finally {
       setLoading(false);
@@ -106,8 +107,7 @@ export default function AdminUsersScreen() {
     const query = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const matchesRole =
-        roleFilter === "all" || user.role === roleFilter;
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
 
       const matchesSearch =
         !query ||
@@ -139,9 +139,7 @@ export default function AdminUsersScreen() {
   const renderUser = ({ item }: { item: AdminUser }) => (
     <Pressable
       style={styles.userCard}
-      onPress={() =>
-        router.push(`/admin/users/${item.id}` as never)
-      }
+      onPress={() => router.push(`/admin/users/${item.id}` as never)}
       accessibilityRole="button"
       accessibilityLabel={`View ${item.name ?? "user"} details`}
     >
@@ -165,9 +163,7 @@ export default function AdminUsersScreen() {
 
         <View style={styles.metaRow}>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>
-              {getRoleLabel(item.role)}
-            </Text>
+            <Text style={styles.roleText}>{getRoleLabel(item.role)}</Text>
           </View>
 
           <Text
@@ -277,10 +273,7 @@ export default function AdminUsersScreen() {
 
         {loading ? (
           <View style={styles.centerState}>
-            <ActivityIndicator
-              size="large"
-              color={Colors.light.primary}
-            />
+            <ActivityIndicator size="large" color={Colors.light.primary} />
             <Text style={styles.stateText}>Loading users...</Text>
           </View>
         ) : error ? (
@@ -305,9 +298,7 @@ export default function AdminUsersScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderUser}
             contentContainerStyle={
-              filteredUsers.length === 0
-                ? styles.emptyList
-                : styles.listContent
+              filteredUsers.length === 0 ? styles.emptyList : styles.listContent
             }
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -432,9 +423,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   emptyList: {
-  flexGrow: 1,
-  paddingBottom: Spacing.five,
-},
+    flexGrow: 1,
+    paddingBottom: Spacing.five,
+  },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
