@@ -17,7 +17,7 @@ import { Href, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
+  ScrollView,
   Pressable,
   StyleSheet,
   Text,
@@ -26,8 +26,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Colors, Fonts, Spacing, Radius, MaxContentWidth } from "@/constants/theme";
 import { getDonations } from "@/services/donationService";
-import { Colors, Fonts, Spacing } from "@/constants/theme";
 
 const colors = Colors.light;
 
@@ -110,143 +110,342 @@ export default function DonationsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <View style={styles.heading}>
-        <View style={styles.headingText}>
-          <Text style={styles.title}>Donations</Text>
-          <Text style={styles.subtitle}>
-            {donations.length} total donations
+      <ScrollView
+        style={styles.pageScroll}
+        contentContainerStyle={styles.workspace}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* PAGE HEADER */}
+        <View style={styles.heading}>
+          <View style={styles.headingText}>
+            <Text style={styles.eyebrow}>SERVD / MANAGEMENT</Text>
+            <Text style={styles.title}>Donations</Text>
+            <Text style={styles.subtitle}>
+              Manage food donations and monitor their collection status.
+            </Text>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh donations"
+            onPress={loadDonations}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.refresh,
+              pressed && styles.pressed,
+              loading && styles.disabled,
+            ]}
+          >
+            <FontAwesome5
+              name="sync-alt"
+              size={14}
+              color={colors.primary}
+              iconStyle="solid"
+            />
+            <Text style={styles.refreshText}>Refresh</Text>
+          </Pressable>
+        </View>
+
+        {/* DONATION SUMMARY */}
+        <View style={styles.summary}>
+          <View style={styles.summaryIcon}>
+            <FontAwesome5
+              name="box"
+              size={18}
+              color={colors.secondary}
+              iconStyle="solid"
+            />
+          </View>
+          <View style={styles.summaryCopy}>
+            <Text style={styles.summaryLabel}>All donations</Text>
+            <Text style={styles.summaryValue}>{donations.length}</Text>
+          </View>
+          <Text style={styles.summaryCaption}>
+            {filtered.length} matching{" "}
+            {filtered.length === 1 ? "record" : "records"}
           </Text>
         </View>
 
-        <Pressable
-          onPress={loadDonations}
-          style={styles.refresh}
-          accessibilityLabel="Refresh donations"
-        >
+        {/* SEARCH */}
+        <View style={styles.searchBox}>
           <FontAwesome5
-            name="sync-alt"
-            size={15}
-            color={colors.primary}
+            name="search"
+            size={14}
+            color={colors.textSecondary}
             iconStyle="solid"
           />
-        </Pressable>
-      </View>
-
-      <View style={styles.searchBox}>
-        <FontAwesome5
-          name="search"
-          size={14}
-          color={colors.textSecondary}
-          iconStyle="solid"
-        />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search food or enterprise..."
-          placeholderTextColor={colors.textSecondary}
-          style={styles.searchInput}
-          autoCapitalize="none"
-        />
-      </View>
-
-      <View style={styles.filters}>
-        {statuses.map((status) => (
-          <Pressable
-            key={status}
-            onPress={() => setFilter(status)}
-            style={[styles.filter, filter === status && styles.filterActive]}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === status && styles.filterTextActive,
-              ]}
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search food, enterprise, or location..."
+            placeholderTextColor={colors.textSecondary}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            returnKeyType="search"
+            accessibilityLabel="Search donations"
+          />
+          {search.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              onPress={() => setSearch("")}
+              hitSlop={8}
+              style={styles.clearSearch}
             >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+              <FontAwesome5
+                name="times-circle"
+                size={15}
+                color={colors.textSecondary}
+                iconStyle="solid"
+              />
+            </Pressable>
+          ) : null}
+        </View>
 
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
-      ) : error ? (
-        <Pressable onPress={loadDonations} style={styles.message}>
-          <Text style={styles.error}>{error}</Text>
-          <Text style={styles.retry}>Tap to retry</Text>
-        </Pressable>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item, index) => item.id ?? String(index)}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <Text style={styles.empty}>No donations found.</Text>
-          }
-          renderItem={({ item }) => {
-            const status = normalizeStatus(item.status);
+        {/* STATUS FILTERS */}
+        <View style={styles.filterSection}>
+          <Text style={styles.filterHeading}>Filter by status</Text>
+          <View style={styles.filters}>
+            {statuses.map((status) => {
+              const selected = filter === status;
+              const count =
+                status === "all"
+                  ? donations.length
+                  : donations.filter(
+                      (item) => normalizeStatus(item.status) === status,
+                    ).length;
 
-            return (
-              <Pressable
-                style={styles.card}
-                onPress={() => {
-                  if (item.id) {
-                    router.push(`/admin/donations/${item.id}` as Href);
-                  }
-                }}
-              >
-                <View style={styles.foodIcon}>
-                  <FontAwesome5
-                    name="box"
-                    size={19}
-                    color={colors.secondary}
-                    iconStyle="solid"
-                  />
-                </View>
-
-                <View style={styles.details}>
-                  <Text style={styles.foodName}>
-                    {item.foodName || "Unnamed donation"}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {item.enterpriseName || "Food enterprise"}
-                  </Text>
-                  {item.quantity != null && (
-                    <Text style={styles.meta}>Quantity: {item.quantity}</Text>
-                  )}
-                  <Text style={styles.meta}>
-                    {item.collectionLocation || "No collection location"}
-                  </Text>
-                </View>
-
-                <View style={styles.right}>
-                  <View
+              return (
+                <Pressable
+                  key={status}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setFilter(status)}
+                  style={({ pressed }) => [
+                    styles.filter,
+                    selected && styles.filterActive,
+                    pressed && styles.filterPressed,
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.status,
-                      status === "available" && styles.available,
-                      status === "reserved" && styles.reserved,
-                      status === "collected" && styles.collected,
-                      status === "cancelled" && styles.cancelled,
-                      status === "expired" && styles.cancelled,
+                      styles.filterText,
+                      selected && styles.filterTextActive,
                     ]}
                   >
-                    <Text style={styles.statusText}>
-                      {status.toUpperCase()}
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.filterCount,
+                      selected && styles.filterCountActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterCountText,
+                        selected && styles.filterCountTextActive,
+                      ]}
+                    >
+                      {count}
                     </Text>
                   </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
-                  <FontAwesome5
-                    name="chevron-right"
-                    size={12}
-                    color={colors.textSecondary}
-                    iconStyle="solid"
-                  />
-                </View>
+        {/* DONATION LIST */}
+        <View style={styles.listSection}>
+          <View style={styles.listHeading}>
+            <View style={styles.listHeadingCopy}>
+              <Text style={styles.listTitle}>Donation records</Text>
+              <Text style={styles.listSubtitle}>
+                {loading
+                  ? "Retrieving the latest records..."
+                  : `${filtered.length} ${filtered.length === 1 ? "donation" : "donations"} found`}
+              </Text>
+            </View>
+          </View>
+
+          {loading ? (
+            <View style={styles.feedbackCard}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.feedbackTitle}>Loading donations</Text>
+              <Text style={styles.feedbackDescription}>
+                Retrieving donation records.
+              </Text>
+            </View>
+          ) : error ? (
+            <View style={styles.feedbackCard}>
+              <View style={styles.errorIcon}>
+                <FontAwesome5
+                  name="exclamation-circle"
+                  size={21}
+                  color={colors.error}
+                  iconStyle="solid"
+                />
+              </View>
+              <Text style={styles.feedbackTitle}>Unable to load donations</Text>
+              <Text style={styles.feedbackDescription}>{error}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={loadDonations}
+                style={({ pressed }) => [
+                  styles.retryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <FontAwesome5
+                  name="redo-alt"
+                  size={12}
+                  color="#FFFFFF"
+                  iconStyle="solid"
+                />
+                <Text style={styles.retryButtonText}>Try again</Text>
               </Pressable>
-            );
-          }}
-        />
-      )}
+            </View>
+          ) : filtered.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIcon}>
+                <FontAwesome5
+                  name="box-open"
+                  size={22}
+                  color={colors.textSecondary}
+                  iconStyle="solid"
+                />
+              </View>
+              <Text style={styles.emptyTitle}>No donations found</Text>
+              <Text style={styles.empty}>
+                {search || filter !== "all"
+                  ? "Try changing your search or selecting a different status filter."
+                  : "Donation records will appear here when they become available."}
+              </Text>
+              {search || filter !== "all" ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setSearch("");
+                    setFilter("all");
+                  }}
+                  style={({ pressed }) => [
+                    styles.clearFiltersButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.clearFiltersText}>
+                    Clear search and filters
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            filtered.map((item, index) => {
+              const status = normalizeStatus(item.status);
+              const statusLabel =
+                status.charAt(0).toUpperCase() + status.slice(1);
+
+              const statusStyle =
+                status === "available"
+                  ? styles.available
+                  : status === "reserved"
+                    ? styles.reserved
+                    : status === "collected"
+                      ? styles.collected
+                      : status === "cancelled" || status === "expired"
+                        ? styles.cancelled
+                        : styles.unknownStatus;
+
+              return (
+                <Pressable
+                  key={item.id ?? String(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View donation ${item.foodName || "Unnamed donation"}`}
+                  onPress={() => {
+                    if (item.id) {
+                      router.push(`/admin/donations/${item.id}` as Href);
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.card,
+                    styles.cardScrollItem,
+                    pressed && styles.cardPressed,
+                  ]}
+                >
+                  <View style={styles.foodIcon}>
+                    <FontAwesome5
+                      name="box"
+                      size={18}
+                      color={colors.secondary}
+                      iconStyle="solid"
+                    />
+                  </View>
+
+                  <View style={styles.details}>
+                    <Text style={styles.foodName} numberOfLines={2}>
+                      {item.foodName || "Unnamed donation"}
+                    </Text>
+
+                    <View style={styles.enterpriseLine}>
+                      <FontAwesome5
+                        name="building"
+                        size={11}
+                        color={colors.textSecondary}
+                        iconStyle="solid"
+                      />
+                      <Text style={styles.meta} numberOfLines={1}>
+                        {item.enterpriseName || "Food enterprise"}
+                      </Text>
+                    </View>
+
+                    {item.quantity != null ? (
+                      <View style={styles.metaLine}>
+                        <FontAwesome5
+                          name="layer-group"
+                          size={11}
+                          color={colors.textSecondary}
+                          iconStyle="solid"
+                        />
+                        <Text style={styles.meta}>
+                          Quantity: {item.quantity}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {item.collectionLocation ? (
+                      <View style={styles.metaLine}>
+                        <FontAwesome5
+                          name="map-marker-alt"
+                          size={11}
+                          color={colors.textSecondary}
+                          iconStyle="solid"
+                        />
+                        <Text style={styles.meta} numberOfLines={2}>
+                          {item.collectionLocation}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.right}>
+                    <View style={[styles.status, statusStyle]}>
+                      <Text style={styles.statusText}>{statusLabel}</Text>
+                    </View>
+                    <FontAwesome5
+                      name="chevron-right"
+                      size={11}
+                      color={colors.textSecondary}
+                      iconStyle="solid"
+                    />
+                  </View>
+                </Pressable>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -254,150 +453,440 @@ export default function DonationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    padding: Spacing.three,
+    backgroundColor: "#FFFFFF",
   },
+  pageScroll: {
+    flex: 1,
+  },
+  workspace: {
+    flexGrow: 1,
+    width: "100%",
+    maxWidth: MaxContentWidth,
+    alignSelf: "center",
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
+    gap: Spacing.two,
+  },
+  cardScrollItem: {
+    marginBottom: 10,
+  },
+
+  /* Page heading */
   heading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: Spacing.three,
+    gap: 12,
   },
-  headingText: { flex: 1 },
+  headingText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  eyebrow: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    color: colors.secondary,
+  },
   title: {
     fontFamily: Fonts.heading,
-    fontSize: 22,
+    fontSize: 29,
+    lineHeight: 36,
     fontWeight: "700",
     color: colors.text,
   },
   subtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
+    lineHeight: 19,
     color: colors.textSecondary,
-    marginTop: 4,
   },
   refresh: {
-    padding: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-  },
-  searchBox: {
+    minHeight: 40,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EAE7E1",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: Spacing.two,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 11,
-    color: colors.text,
-    fontFamily: Fonts.body,
-  },
-  filters: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    justifyContent: "center",
     gap: 8,
-    marginBottom: Spacing.three,
-  },
-  filter: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#EAE7E1",
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.md,
   },
-  filterActive: {
-    backgroundColor: "#FCEDEA",
-    borderColor: colors.primary,
+  refreshText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
   },
-  filterText: {
+  pressed: {
+    opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+
+  /* Summary strip */
+  summary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: Spacing.two,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+  },
+  summaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.backgroundElement,
+  },
+  summaryCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  summaryLabel: {
     fontFamily: Fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
   },
-  filterTextActive: {
-    color: colors.primary,
+  summaryValue: {
+    fontFamily: Fonts.heading,
+    fontSize: 22,
+    lineHeight: 27,
     fontWeight: "700",
+    color: colors.text,
+  },
+  summaryCaption: {
+    maxWidth: 130,
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: "right",
+    color: colors.textSecondary,
+  },
+
+  /* Search */
+  searchBox: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.md,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: colors.text,
+  },
+  clearSearch: {
+    padding: 4,
+  },
+
+  /* Status filters */
+  filterSection: {
+    gap: 8,
+  },
+  filterHeading: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  filters: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  filter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: 20,
+  },
+  filterActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterPressed: {
+    opacity: 0.75,
+  },
+  filterText: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  filterTextActive: {
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  filterCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.backgroundElement,
+  },
+  filterCountActive: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  filterCountText: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  filterCountTextActive: {
+    color: "#FFFFFF",
+  },
+
+  /* List heading and scrolling list */
+  listSection: {
+    gap: Spacing.two,
+  },
+  listHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  listHeadingCopy: {
+    gap: 3,
+  },
+  listTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  listSubtitle: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  flatList: {
+    flex: 1,
+    minHeight: 0,
   },
   list: {
-    gap: Spacing.two,
+    flexGrow: 1,
     paddingBottom: Spacing.four,
   },
+  listGap: {
+    height: 10,
+  },
+
+  /* Donation cards */
   card: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: Spacing.three,
-    backgroundColor: "#FFFFFF",
+    padding: Spacing.two,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#EAE7E1",
-    borderRadius: 10,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+  },
+  cardPressed: {
+    opacity: 0.78,
+    backgroundColor: colors.backgroundElement,
   },
   foodIcon: {
     width: 42,
     height: 42,
-    borderRadius: 9,
-    backgroundColor: "#E8F3F1",
+    flexShrink: 0,
+    borderRadius: Radius.md,
+    backgroundColor: colors.backgroundElement,
     alignItems: "center",
     justifyContent: "center",
   },
   details: {
     flex: 1,
-    gap: 4,
+    minWidth: 0,
+    gap: 6,
   },
   foodName: {
     fontFamily: Fonts.body,
-    fontSize: 15,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "700",
     color: colors.text,
   },
+  enterpriseLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  metaLine: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+  },
   meta: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 16,
     color: colors.textSecondary,
   },
   right: {
     alignItems: "flex-end",
+    justifyContent: "center",
     gap: 10,
+    flexShrink: 0,
   },
+
+  /* Status badges */
   status: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    maxWidth: 110,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: Radius.sm,
+  },
+  available: {
+    backgroundColor: "#DCEFEA",
+  },
+  reserved: {
     backgroundColor: "#F0E6D2",
   },
-  available: { backgroundColor: "#E8F3F1" },
-  reserved: { backgroundColor: "#FFF0D8" },
-  collected: { backgroundColor: "#E7F2DE" },
-  cancelled: { backgroundColor: "#FDECEC" },
+  collected: {
+    backgroundColor: "#E6ECD9",
+  },
+  cancelled: {
+    backgroundColor: "#F6DEDA",
+  },
+  unknownStatus: {
+    backgroundColor: colors.backgroundSelected,
+  },
   statusText: {
     fontFamily: Fonts.body,
     fontSize: 10,
     fontWeight: "700",
     color: colors.text,
   },
-  loader: { marginTop: 40 },
-  message: {
-    padding: Spacing.three,
+
+  /* Loading and error states */
+  feedbackCard: {
+    minHeight: 180,
     alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.three,
+    gap: 10,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
   },
-  error: {
-    color: colors.error,
+  feedbackTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 18,
+    fontWeight: "700",
     textAlign: "center",
+    color: colors.text,
   },
-  retry: {
-    color: colors.primary,
-    marginTop: 8,
-  },
-  empty: {
+  feedbackDescription: {
+    maxWidth: 340,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 18,
     textAlign: "center",
     color: colors.textSecondary,
-    padding: Spacing.four,
+  },
+  errorIcon: {
+    width: 46,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 23,
+    backgroundColor: "#F6DEDA",
+  },
+  retryButton: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 17,
+    paddingVertical: 11,
+    borderRadius: Radius.md,
+    backgroundColor: colors.primary,
+  },
+  retryButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  /* Empty state */
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 30,
+    gap: 10,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+  },
+  emptyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.backgroundElement,
+    marginBottom: 2,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    color: colors.text,
+  },
+  empty: {
+    maxWidth: 340,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 19,
+    textAlign: "center",
+    color: colors.textSecondary,
+  },
+  clearFiltersButton: {
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: Radius.md,
+    backgroundColor: colors.backgroundElement,
+  },
+  clearFiltersText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
   },
 });
