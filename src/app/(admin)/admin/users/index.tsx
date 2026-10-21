@@ -62,6 +62,7 @@ export default function AdminUsersScreen() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
+  // Fetch users and sort them alphabetically by name.
   const fetchUsers = useCallback(async () => {
     try {
       setError(null);
@@ -81,9 +82,7 @@ export default function AdminUsersScreen() {
         };
       });
 
-      fetchedUsers.sort((a, b) =>
-        (a.name || "").localeCompare(b.name || ""),
-      );
+      fetchedUsers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
       setUsers(fetchedUsers);
     } catch (err) {
@@ -104,23 +103,23 @@ export default function AdminUsersScreen() {
     void fetchUsers();
   }, [fetchUsers]);
 
+  // Calculate totals for the overview cards and role filters.
   const roleCounts = useMemo(
     () => ({
       all: users.length,
-      enterprise: users.filter((user) => user.role === ROLES.ENTERPRISE)
-        .length,
+      enterprise: users.filter((user) => user.role === ROLES.ENTERPRISE).length,
       ngo: users.filter((user) => user.role === ROLES.NGO).length,
       admin: users.filter((user) => user.role === ROLES.ADMIN).length,
     }),
     [users],
   );
 
+  // Apply the selected role and search query.
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const matchesRole =
-        roleFilter === "all" || user.role === roleFilter;
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
 
       const matchesSearch =
         !query ||
@@ -155,6 +154,7 @@ export default function AdminUsersScreen() {
   const getStatusColor = (status?: string) =>
     status === "active" ? colors.accent : colors.error;
 
+  // Render a user card that opens the corresponding detail screen.
   const renderUser = (item: AdminUser) => (
     <Pressable
       key={item.id}
@@ -186,9 +186,7 @@ export default function AdminUsersScreen() {
 
         <View style={styles.userMeta}>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>
-              {getRoleLabel(item.role)}
-            </Text>
+            <Text style={styles.roleBadgeText}>{getRoleLabel(item.role)}</Text>
           </View>
 
           <View style={styles.statusContainer}>
@@ -217,9 +215,9 @@ export default function AdminUsersScreen() {
       />
     </Pressable>
   );
-  
-    return (
-  <SafeAreaView style={styles.safeArea} edges={[]}>
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         style={styles.page}
         contentContainerStyle={styles.pageContent}
@@ -242,7 +240,7 @@ export default function AdminUsersScreen() {
             </Text>
           </View>
 
-          {/* Overview */}
+          {/* User totals grouped by role */}
           <View style={styles.overviewSection}>
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionTitle}>Overview</Text>
@@ -267,7 +265,9 @@ export default function AdminUsersScreen() {
                       iconStyle="solid"
                     />
                   </View>
-                  <Text style={[styles.overviewCount, { color: colors.primary }]}>
+                  <Text
+                    style={[styles.overviewCount, { color: colors.primary }]}
+                  >
                     {roleCounts.all}
                   </Text>
                 </View>
@@ -290,10 +290,7 @@ export default function AdminUsersScreen() {
                     />
                   </View>
                   <Text
-                    style={[
-                      styles.overviewCount,
-                      { color: colors.secondary },
-                    ]}
+                    style={[styles.overviewCount, { color: colors.secondary }]}
                   >
                     {roleCounts.enterprise}
                   </Text>
@@ -340,12 +337,7 @@ export default function AdminUsersScreen() {
                       iconStyle="solid"
                     />
                   </View>
-                  <Text
-                    style={[
-                      styles.overviewCount,
-                      { color: colors.text },
-                    ]}
-                  >
+                  <Text style={[styles.overviewCount, { color: colors.text }]}>
                     {roleCounts.admin}
                   </Text>
                 </View>
@@ -354,7 +346,7 @@ export default function AdminUsersScreen() {
             </View>
           </View>
 
-          {/* Search */}
+          {/* Search users by name, email, or identifier */}
           <View style={styles.searchContainer}>
             <FontAwesome5
               name="search"
@@ -389,12 +381,10 @@ export default function AdminUsersScreen() {
             )}
           </View>
 
-          {/* Role filters */}
+          {/* Filter the list by account role */}
           <View style={styles.filterHeader}>
             <Text style={styles.filterHeading}>FILTER BY ROLE</Text>
-            <Text style={styles.filterCount}>
-              {filteredUsers.length} users
-            </Text>
+            <Text style={styles.filterCount}>{filteredUsers.length} users</Text>
           </View>
 
           <ScrollView
@@ -438,7 +428,7 @@ export default function AdminUsersScreen() {
             })}
           </ScrollView>
 
-          {/* Users list */}
+          {/* Loading, error, empty, and populated list states */}
           <View style={styles.userList}>
             {loading ? (
               <View style={styles.stateContainer}>
@@ -489,6 +479,7 @@ export default function AdminUsersScreen() {
   );
 }
 
+// Shared layout, typography, filter, and user-card styles.
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -498,12 +489,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-pageContent: {
-  flexGrow: 1,
-  paddingHorizontal: Spacing.three,
-  paddingTop: Spacing.two, 
-  paddingBottom: Spacing.six,
-},
+  pageContent: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.six,
+  },
   content: {
     width: "100%",
     maxWidth: MaxContentWidth,
@@ -534,7 +525,7 @@ pageContent: {
     color: colors.textSecondary,
   },
 
-  /* NGO-style overview section */
+  /* Overview cards */
   overviewSection: {
     backgroundColor: colors.background,
     padding: Spacing.three,
@@ -612,7 +603,7 @@ pageContent: {
     color: colors.textSecondary,
   },
 
-  /* Search */
+  /* Search input */
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",

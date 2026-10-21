@@ -48,6 +48,7 @@ export default function AdminUserDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Load the selected user record from Firestore.
   const loadUser = async () => {
     if (!id || Array.isArray(id)) {
       setUser(null);
@@ -87,6 +88,7 @@ export default function AdminUserDetailScreen() {
     }
   };
 
+  // Check administrator access before loading account details.
   useEffect(() => {
     if (authLoading) return;
 
@@ -100,6 +102,7 @@ export default function AdminUserDetailScreen() {
     void loadUser();
   }, [id, currentRole, authLoading]);
 
+  // Confirm and apply account suspension or reactivation.
   const toggleAccountStatus = () => {
     if (!id || Array.isArray(id) || !user || saving) return;
 
@@ -159,6 +162,7 @@ export default function AdminUserDetailScreen() {
     );
   };
 
+  // Convert stored role values into readable labels.
   const getRoleLabel = (role: string) => {
     switch (role) {
       case ROLES.ADMIN:
@@ -174,6 +178,7 @@ export default function AdminUserDetailScreen() {
 
   const isActive = user?.accountStatus === ACCOUNT_STATUS.ACTIVE;
 
+  // Match status labels and styling to the account's current state.
   const getStatusColors = (status: string) => {
     if (status === ACCOUNT_STATUS.ACTIVE) {
       return {
@@ -321,7 +326,7 @@ export default function AdminUserDetailScreen() {
           <FontAwesome5
             name="filter"
             size={12}
-            color={colors.textSecondary}
+            color={colors.primary}
             iconStyle="solid"
           />
           <Text style={[styles.statusText, { color: statusStyle.color }]}>
@@ -435,6 +440,7 @@ export default function AdminUserDetailScreen() {
   );
 }
 
+// Reusable card for grouped account details.
 function SectionCard({
   icon,
   title,
@@ -451,9 +457,9 @@ function SectionCard({
       <View style={styles.sectionHeadingRow}>
         <View style={styles.sectionIcon}>
           <FontAwesome5
-            name="check-circle"
+            name="filter"
             size={16}
-            color={colors.textSecondary}
+            color={colors.primary}
             iconStyle="solid"
           />
         </View>
@@ -469,6 +475,7 @@ function SectionCard({
   );
 }
 
+// Reusable label and value row for account information.
 function DetailRow({
   label,
   value,
@@ -488,6 +495,7 @@ function DetailRow({
   );
 }
 
+// Shared layout, typography, status, and action styles.
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
