@@ -13,12 +13,27 @@
  * - Provides navigation back to the enterprise list.
  */
 
+/**
+ * Enterprise Details Screen
+ *
+ * Displays the details of a selected food enterprise.
+ *
+ * Responsibilities:
+ * - Loads the selected enterprise document from Firestore.
+ * - Displays enterprise, contact, and registration information.
+ * - Displays account status and creation date where available.
+ * - Handles loading, error, and missing-record states.
+ * - Provides navigation back to the enterprise list.
+ * - Leaves suspend and delete handlers ready for backend integration.
+ */
+
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,25 +41,48 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import { db } from "@/config/firebase";
-import { COLLECTIONS } from "@/constants/roles";
-import { Colors, Fonts, Spacing } from "@/constants/theme";
+import { ACCOUNT_STATUS, COLLECTIONS } from "@/constants/roles";
+import {
+  Colors,
+  Fonts,
+  Radius,
+  Spacing,
+  MaxContentWidth,
+} from "@/constants/theme";
 
 const colors = Colors.light;
 
 type Enterprise = {
   enterpriseName?: string;
+
+  // Fields used by the enterprise list
+  contactInformation?: string;
+  registrationNumber?: string;
+  userID?: string;
+  createdTimestamp?: TimestampValue | string;
+
+  // Additional enterprise details
   contactName?: string;
   email?: string;
   phone?: string;
   address?: string;
   businessAddress?: string;
-  createdAt?: { toDate?: () => Date } | string;
+  accountStatus?: string;
+
+  // Legacy creation date field, if present in existing documents
+  createdAt?: TimestampValue | string;
+};
+
+type TimestampValue = {
+  toDate?: () => Date;
 };
 
 export default function EnterpriseDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+
   const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,6 +91,9 @@ export default function EnterpriseDetailsScreen() {
     let active = true;
 
     async function loadEnterprise() {
+      setLoading(true);
+      setError("");
+
       if (!id) {
         setError("Enterprise ID is missing.");
         setLoading(false);
@@ -60,86 +101,396 @@ export default function EnterpriseDetailsScreen() {
       }
 
       try {
-        const snapshot = await getDoc(doc(db, COLLECTIONS.ENTERPRISES, id));
+        const snapshot = await getDoc(
+          doc(db, COLLECTIONS.ENTERPRISES, id),
+        );
 
         if (!snapshot.exists()) {
-          if (active) setError("Enterprise not found.");
+          if (active) {
+            setError("Enterprise not found.");
+          }
           return;
         }
 
-        if (active) setEnterprise(snapshot.data() as Enterprise);
+        if (active) {
+          setEnterprise(snapshot.data() as Enterprise);
+        }
       } catch (err) {
         console.error("Error loading enterprise:", err);
-        if (active) setError("Unable to load enterprise details.");
+
+        if (active) {
+          setError("Unable to load enterprise details.");
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
     loadEnterprise();
+
     return () => {
       active = false;
     };
   }, [id]);
 
-  const dateValue = enterprise?.createdAt;
-  const createdAt =
-    dateValue && typeof dateValue === "object" && "toDate" in dateValue
-      ? dateValue.toDate?.().toLocaleDateString()
-      : typeof dateValue === "string"
-        ? dateValue
-        : undefined;
+  const dateValue =
+    enterprise?.createdTimestamp ?? enterprise?.createdAt;
+
+  const createdAt = (() => {
+    if (!dateValue) return undefined;
+
+    try {
+      const date =
+        typeof dateValue === "string"
+          ? new Date(dateValue)
+          : dateValue.toDate?.();
+
+      if (!date || Number.isNaN(date.getTime())) {
+        return typeof dateValue === "string" ? dateValue : undefined;
+      }
+
+      return date.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const status = enterprise?.accountStatus ?? ACCOUNT_STATUS.ACTIVE;
+  const isActive = status === ACCOUNT_STATUS.ACTIVE;
+
+  const businessAddress =
+    enterprise?.businessAddress || enterprise?.address;
 
   function detail(label: string, value?: string) {
     return (
       <View style={styles.detail} key={label}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{value || "Not provided"}</Text>
+        <Text style={styles.detailLabel}>{label}</Text>
+        <Text style={styles.detailValue}>
+          {value?.trim() || "Not provided"}
+        </Text>
       </View>
     );
   }
 
+  // Placeholder: backend partner can implement account suspension here.
+  const handleSuspend = () => {
+    Alert.alert(
+      "Suspend enterprise?",
+      "This will disable the enterprise account.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          style: "destructive",
+          onPress: async () => {
+            // TODO: Connect to backend suspension functionality.
+            Alert.alert(
+              "Backend integration pending",
+              "Account suspension has not been implemented yet.",
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  // Placeholder: backend partner can implement account deletion here.
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete enterprise?",
+      "This will permanently delete the enterprise account.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm deletion",
+          style: "destructive",
+          onPress: async () => {
+            // TODO: Connect to backend deletion functionality.
+            Alert.alert(
+              "Backend integration pending",
+              "Account deletion has not been implemented yet.",
+            );
+          },
+        },
+      ],
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <FontAwesome5 name="arrow-left" size={14} color={colors.primary} iconStyle="solid"/>
+    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Back navigation */}
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Back to enterprises"
+        >
+          <FontAwesome5
+            name="arrow-left"
+            size={14}
+            color={colors.primary}
+            iconStyle="solid"
+          />
           <Text style={styles.backText}>Back to enterprises</Text>
         </Pressable>
 
+        {/* Loading state */}
         {loading ? (
-          <ActivityIndicator color={colors.primary} style={styles.loader} />
+          <View style={styles.stateCard}>
+            <ActivityIndicator color={colors.primary} size="large" />
+            <Text style={styles.stateText}>
+              Loading enterprise details...
+            </Text>
+          </View>
         ) : error ? (
-          <Text style={styles.error}>{error}</Text>
+          /* Error state */
+          <View style={styles.stateCard}>
+            <View style={styles.stateIconError}>
+              <FontAwesome5
+                name="exclamation-circle"
+                size={24}
+                color={colors.error}
+                iconStyle="solid"
+              />
+            </View>
+
+            <Text style={styles.stateTitle}>
+              Unable to display enterprise
+            </Text>
+
+            <Text style={styles.stateText}>{error}</Text>
+
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={styles.secondaryButtonText}>
+                Return to enterprises
+              </Text>
+            </Pressable>
+          </View>
         ) : enterprise ? (
           <>
+            {/* Enterprise profile */}
             <View style={styles.profile}>
-              <View style={styles.icon}>
-                <FontAwesome5 name="store" size={26} color={colors.secondary} iconStyle="solid"/>
+              <View style={styles.profileIcon}>
+                <FontAwesome5
+                  name="store"
+                  size={27}
+                  color={colors.secondary}
+                  iconStyle="solid"
+                />
               </View>
-              <Text style={styles.title}>
+
+              <Text style={styles.eyebrow}>
+                SERVD / ADMINISTRATION
+              </Text>
+
+              <Text style={styles.profileTitle}>
                 {enterprise.enterpriseName || "Unnamed enterprise"}
               </Text>
-              <Text style={styles.subtitle}>Food enterprise</Text>
+
+              <View
+                style={[
+                  styles.statusBadge,
+                  isActive
+                    ? styles.activeBadge
+                    : styles.suspendedBadge,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    isActive
+                      ? styles.activeDot
+                      : styles.suspendedDot,
+                  ]}
+                />
+                <Text style={styles.statusText}>
+                  {isActive ? "Active account" : "Suspended account"}
+                </Text>
+              </View>
+
+              <Text style={styles.profileDescription}>
+                Enterprise account details and registration information.
+              </Text>
             </View>
 
+            {/* Contact information */}
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Contact information</Text>
-              {detail("Contact person", enterprise.contactName)}
-              {detail("Email", enterprise.email)}
-              {detail("Phone", enterprise.phone)}
-            </View>
+              <View style={styles.cardHeading}>
+                <View style={styles.cardIcon}>
+                  <FontAwesome5
+                    name="address-card"
+                    size={16}
+                    color={colors.secondary}
+                    iconStyle="solid"
+                  />
+                </View>
 
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Business information</Text>
+                <View style={styles.cardHeadingText}>
+                  <Text style={styles.sectionTitle}>
+                    Contact information
+                  </Text>
+                  <Text style={styles.sectionDescription}>
+                    How to reach this enterprise
+                  </Text>
+                </View>
+              </View>
+
               {detail(
-                "Business address",
-                enterprise.businessAddress || enterprise.address,
+                "Contact person",
+                enterprise.contactName,
               )}
+
+              {detail(
+                "Contact information",
+                enterprise.contactInformation,
+              )}
+
+              {detail("Email address", enterprise.email)}
+
+              {detail("Phone number", enterprise.phone)}
+            </View>
+
+            {/* Business information */}
+            <View style={styles.card}>
+              <View style={styles.cardHeading}>
+                <View style={styles.cardIcon}>
+                  <FontAwesome5
+                    name="building"
+                    size={16}
+                    color={colors.secondary}
+                    iconStyle="solid"
+                  />
+                </View>
+
+                <View style={styles.cardHeadingText}>
+                  <Text style={styles.sectionTitle}>
+                    Business information
+                  </Text>
+                  <Text style={styles.sectionDescription}>
+                    Registration and business details
+                  </Text>
+                </View>
+              </View>
+
+              {detail("Enterprise name", enterprise.enterpriseName)}
+
+              {detail("Registration number", enterprise.registrationNumber)}
+
+              {detail("Business address", businessAddress)}
+
               {detail("Registered on", createdAt)}
-              <View style={styles.detail}>
-                <Text style={styles.label}>Document ID</Text>
-                <Text style={styles.value}>{id}</Text>
+            </View>
+
+            {/* Account information */}
+            <View style={styles.card}>
+              <View style={styles.cardHeading}>
+                <View style={styles.cardIcon}>
+                  <FontAwesome5
+                    name="fingerprint"
+                    size={16}
+                    color={colors.secondary}
+                    iconStyle="solid"
+                  />
+                </View>
+
+                <View style={styles.cardHeadingText}>
+                  <Text style={styles.sectionTitle}>
+                    Account information
+                  </Text>
+                  <Text style={styles.sectionDescription}>
+                    Identifiers and account status
+                  </Text>
+                </View>
+              </View>
+
+              {detail("Account status", isActive ? "Active" : "Suspended")}
+
+              {detail("User ID", enterprise.userID)}
+
+              {detail("Document ID", id)}
+            </View>
+
+            {/* Administrative actions */}
+            <View style={styles.actionsSection}>
+              <Text style={styles.sectionTitle}>
+                Administrative actions
+              </Text>
+
+              <Text style={styles.actionsDescription}>
+                Manage access to this enterprise account.
+              </Text>
+
+              <Pressable
+                onPress={handleSuspend}
+                style={({ pressed }) => [
+                  styles.suspendButton,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Suspend enterprise account"
+              >
+                <FontAwesome5
+                  name="pause-circle"
+                  size={16}
+                  color="#FFFFFF"
+                  iconStyle="solid"
+                />
+                <Text style={styles.actionText}>
+                  Suspend account
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleDelete}
+                style={({ pressed }) => [
+                  styles.deleteButton,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Delete enterprise account"
+              >
+                <FontAwesome5
+                  name="trash-alt"
+                  size={15}
+                  color="#FFFFFF"
+                  iconStyle="solid"
+                />
+                <Text style={styles.actionText}>
+                  Delete account
+                </Text>
+              </Pressable>
+
+              <View style={styles.actionNote}>
+                <FontAwesome5
+                  name="info-circle"
+                  size={13}
+                  color={colors.textSecondary}
+                  iconStyle="solid"
+                />
+                <Text style={styles.actionNoteText}>
+                  Account management actions require backend integration.
+                </Text>
               </View>
             </View>
           </>
@@ -150,58 +501,280 @@ export default function EnterpriseDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: Spacing.three, gap: Spacing.three },
-  back: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  content: {
+    flexGrow: 1,
+    width: "100%",
+    maxWidth: MaxContentWidth,
+    alignSelf: "center",
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.six,
+    gap: Spacing.three,
+  },
+
+  // Back navigation
+  backButton: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingRight: Spacing.two,
   },
   backText: {
-    color: colors.primary,
     fontFamily: Fonts.body,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
   },
-  loader: { marginTop: 40 },
-  error: { color: colors.error, textAlign: "center", marginTop: 24 },
-  profile: { alignItems: "center", paddingVertical: Spacing.four, gap: 8 },
-  icon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: "#E8F3F1",
+  pressed: {
+    opacity: 0.75,
+  },
+
+  // Profile header
+  profile: {
+    alignItems: "center",
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
+    gap: Spacing.two,
+  },
+  profileIcon: {
+    width: 68,
+    height: 68,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    backgroundColor: "#E9F4F1",
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.one,
   },
-  title: {
+  eyebrow: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: colors.secondary,
+    textAlign: "center",
+  },
+  profileTitle: {
+    width: "100%",
     fontFamily: Fonts.heading,
-    fontSize: 23,
+    fontSize: 25,
+    lineHeight: 32,
     fontWeight: "700",
     color: colors.text,
     textAlign: "center",
   },
-  subtitle: {
+  profileDescription: {
+    maxWidth: 320,
     fontFamily: Fonts.body,
-    color: colors.textSecondary,
     fontSize: 13,
+    lineHeight: 20,
+    color: colors.textSecondary,
+    textAlign: "center",
   },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.sm,
+  },
+  activeBadge: {
+    backgroundColor: "#E6ECD9",
+  },
+  suspendedBadge: {
+    backgroundColor: "#F6DEDA",
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  activeDot: {
+    backgroundColor: colors.accent,
+  },
+  suspendedDot: {
+    backgroundColor: colors.error,
+  },
+  statusText: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.text,
+  },
+
+  // Information cards
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#EAE7E1",
     padding: Spacing.three,
     gap: Spacing.three,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+  },
+  cardHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    marginBottom: Spacing.one,
+  },
+  cardIcon: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E9F4F1",
+    borderRadius: Radius.md,
+  },
+  cardHeadingText: {
+    flex: 1,
+    gap: Spacing.half,
   },
   sectionTitle: {
     fontFamily: Fonts.heading,
     fontSize: 17,
+    lineHeight: 23,
     fontWeight: "700",
     color: colors.text,
   },
-  detail: { gap: 4 },
-  label: { fontFamily: Fonts.body, fontSize: 12, color: colors.textSecondary },
-  value: { fontFamily: Fonts.body, fontSize: 14, color: colors.text },
+  sectionDescription: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  detail: {
+    gap: Spacing.one,
+  },
+  detailLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+    color: colors.textSecondary,
+  },
+  detailValue: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.text,
+    ...( {
+      userSelect: "text",
+    } as object ),
+  },
+
+  // Administrative actions
+  actionsSection: {
+    gap: Spacing.two,
+    paddingTop: Spacing.two,
+  },
+  actionsDescription: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginBottom: Spacing.one,
+  },
+  suspendButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    backgroundColor: colors.secondary,
+    borderRadius: Radius.md,
+  },
+  deleteButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    backgroundColor: colors.error,
+    borderRadius: Radius.md,
+  },
+  actionText: {
+    fontFamily: Fonts.button,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  actionNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.two,
+    paddingTop: Spacing.one,
+  },
+  actionNoteText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+
+  // Loading and error states
+  stateCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.five,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.two,
+  },
+  stateIconError: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F6DEDA",
+    borderRadius: Radius.lg,
+  },
+  stateTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+  },
+  stateText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  secondaryButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.md,
+  },
+  secondaryButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
 });
