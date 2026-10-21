@@ -29,7 +29,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { db } from "@/config/firebase";
 import { COLLECTIONS } from "@/constants/roles";
-import { Colors, Fonts, Radius, Spacing, MaxContentWidth } from "@/constants/theme";
+import {
+  Colors,
+  Fonts,
+  Radius,
+  Spacing,
+  MaxContentWidth,
+} from "@/constants/theme";
 
 const colors = Colors.light;
 
@@ -54,6 +60,7 @@ export default function EnterprisesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fetch all registered enterprises from Firestore
   const loadEnterprises = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -81,6 +88,7 @@ export default function EnterprisesScreen() {
     loadEnterprises();
   }, [loadEnterprises]);
 
+  // Filter enterprises by name, contact information, registration number, or user ID
   const filteredEnterprises = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -99,6 +107,7 @@ export default function EnterprisesScreen() {
     );
   }, [enterprises, search]);
 
+  // Render an enterprise card that opens its details screen
   const renderEnterprise = ({ item }: { item: Enterprise }) => (
     <Pressable
       onPress={() => router.push(`/admin/enterprises/${item.id}` as never)}
@@ -156,7 +165,7 @@ export default function EnterprisesScreen() {
         ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
         ListHeaderComponent={
           <View style={styles.pageContent}>
-            {/* Page heading */}
+            {/* Page heading and refresh action */}
             <View style={styles.pageHeader}>
               <View style={styles.pageHeadingGroup}>
                 <Text style={styles.eyebrow}>SERVD / ADMINISTRATION</Text>
@@ -189,7 +198,7 @@ export default function EnterprisesScreen() {
               </Pressable>
             </View>
 
-            {/* Overview */}
+            {/* Summary of registered enterprises */}
             <View style={styles.overview}>
               <View style={styles.overviewHeader}>
                 <Text style={styles.sectionTitle}>Overview</Text>
@@ -215,7 +224,7 @@ export default function EnterprisesScreen() {
               </View>
             </View>
 
-            {/* Search */}
+            {/* Search registered enterprises */}
             <View style={styles.searchBox}>
               <FontAwesome5
                 name="search"
@@ -254,7 +263,7 @@ export default function EnterprisesScreen() {
               ) : null}
             </View>
 
-            {/* List heading */}
+            {/* Results heading and count */}
             <View style={styles.resultsHeader}>
               <View style={styles.resultsHeadingGroup}>
                 <Text style={styles.sectionTitle}>Enterprises</Text>
@@ -279,7 +288,7 @@ export default function EnterprisesScreen() {
               </View>
             ) : null}
 
-            {/* Error state */}
+            {/* Error state with retry action */}
             {!loading && error ? (
               <Pressable
                 onPress={loadEnterprises}
@@ -298,7 +307,7 @@ export default function EnterprisesScreen() {
               </Pressable>
             ) : null}
 
-            {/* Empty state */}
+            {/* Empty state for the list or search results */}
             {!loading && !error && filteredEnterprises.length === 0 ? (
               <View style={styles.stateContainer}>
                 <FontAwesome5
@@ -498,7 +507,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 
-  // Results 
+  // Results
   resultsHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -507,7 +516,7 @@ const styles = StyleSheet.create({
   },
   resultsHeadingGroup: {
     flex: 1,
-    gap: Spacing.one
+    gap: Spacing.one,
   },
   resultsDescription: {
     marginTop: Spacing.half,

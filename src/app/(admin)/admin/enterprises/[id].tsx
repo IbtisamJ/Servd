@@ -13,20 +13,6 @@
  * - Provides navigation back to the enterprise list.
  */
 
-/**
- * Enterprise Details Screen
- *
- * Displays the details of a selected food enterprise.
- *
- * Responsibilities:
- * - Loads the selected enterprise document from Firestore.
- * - Displays enterprise, contact, and registration information.
- * - Displays account status and creation date where available.
- * - Handles loading, error, and missing-record states.
- * - Provides navigation back to the enterprise list.
- * - Leaves suspend and delete handlers ready for backend integration.
- */
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
@@ -57,7 +43,7 @@ const colors = Colors.light;
 type Enterprise = {
   enterpriseName?: string;
 
-  // Fields used by the enterprise list
+  // Fields displayed in the enterprise list
   contactInformation?: string;
   registrationNumber?: string;
   userID?: string;
@@ -71,7 +57,7 @@ type Enterprise = {
   businessAddress?: string;
   accountStatus?: string;
 
-  // Legacy creation date field, if present in existing documents
+  // Legacy field for existing documents
   createdAt?: TimestampValue | string;
 };
 
@@ -87,6 +73,7 @@ export default function EnterpriseDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fetch the enterprise details using its document ID
   useEffect(() => {
     let active = true;
 
@@ -101,9 +88,7 @@ export default function EnterpriseDetailsScreen() {
       }
 
       try {
-        const snapshot = await getDoc(
-          doc(db, COLLECTIONS.ENTERPRISES, id),
-        );
+        const snapshot = await getDoc(doc(db, COLLECTIONS.ENTERPRISES, id));
 
         if (!snapshot.exists()) {
           if (active) {
@@ -135,8 +120,8 @@ export default function EnterpriseDetailsScreen() {
     };
   }, [id]);
 
-  const dateValue =
-    enterprise?.createdTimestamp ?? enterprise?.createdAt;
+  // Support both current and legacy creation date fields
+  const dateValue = enterprise?.createdTimestamp ?? enterprise?.createdAt;
 
   const createdAt = (() => {
     if (!dateValue) return undefined;
@@ -164,9 +149,9 @@ export default function EnterpriseDetailsScreen() {
   const status = enterprise?.accountStatus ?? ACCOUNT_STATUS.ACTIVE;
   const isActive = status === ACCOUNT_STATUS.ACTIVE;
 
-  const businessAddress =
-    enterprise?.businessAddress || enterprise?.address;
+  const businessAddress = enterprise?.businessAddress || enterprise?.address;
 
+  // Reuse the same layout for each enterprise detail
   function detail(label: string, value?: string) {
     return (
       <View style={styles.detail} key={label}>
@@ -178,7 +163,7 @@ export default function EnterpriseDetailsScreen() {
     );
   }
 
-  // Placeholder: backend partner can implement account suspension here.
+  // Placeholder until backend account suspension is implemented
   const handleSuspend = () => {
     Alert.alert(
       "Suspend enterprise?",
@@ -200,7 +185,7 @@ export default function EnterpriseDetailsScreen() {
     );
   };
 
-  // Placeholder: backend partner can implement account deletion here.
+  // Placeholder until backend account deletion is implemented
   const handleDelete = () => {
     Alert.alert(
       "Delete enterprise?",
@@ -248,16 +233,13 @@ export default function EnterpriseDetailsScreen() {
           <Text style={styles.backText}>Back to enterprises</Text>
         </Pressable>
 
-        {/* Loading state */}
+        {/* Loading and error states */}
         {loading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.stateText}>
-              Loading enterprise details...
-            </Text>
+            <Text style={styles.stateText}>Loading enterprise details...</Text>
           </View>
         ) : error ? (
-          /* Error state */
           <View style={styles.stateCard}>
             <View style={styles.stateIconError}>
               <FontAwesome5
@@ -268,9 +250,7 @@ export default function EnterpriseDetailsScreen() {
               />
             </View>
 
-            <Text style={styles.stateTitle}>
-              Unable to display enterprise
-            </Text>
+            <Text style={styles.stateTitle}>Unable to display enterprise</Text>
 
             <Text style={styles.stateText}>{error}</Text>
 
@@ -289,7 +269,7 @@ export default function EnterpriseDetailsScreen() {
           </View>
         ) : enterprise ? (
           <>
-            {/* Enterprise profile */}
+            {/* Enterprise profile and account status */}
             <View style={styles.profile}>
               <View style={styles.profileIcon}>
                 <FontAwesome5
@@ -300,9 +280,7 @@ export default function EnterpriseDetailsScreen() {
                 />
               </View>
 
-              <Text style={styles.eyebrow}>
-                SERVD / ADMINISTRATION
-              </Text>
+              <Text style={styles.eyebrow}>SERVD / ADMINISTRATION</Text>
 
               <Text style={styles.profileTitle}>
                 {enterprise.enterpriseName || "Unnamed enterprise"}
@@ -311,17 +289,13 @@ export default function EnterpriseDetailsScreen() {
               <View
                 style={[
                   styles.statusBadge,
-                  isActive
-                    ? styles.activeBadge
-                    : styles.suspendedBadge,
+                  isActive ? styles.activeBadge : styles.suspendedBadge,
                 ]}
               >
                 <View
                   style={[
                     styles.statusDot,
-                    isActive
-                      ? styles.activeDot
-                      : styles.suspendedDot,
+                    isActive ? styles.activeDot : styles.suspendedDot,
                   ]}
                 />
                 <Text style={styles.statusText}>
@@ -334,7 +308,7 @@ export default function EnterpriseDetailsScreen() {
               </Text>
             </View>
 
-            {/* Contact information */}
+            {/* Contact details */}
             <View style={styles.card}>
               <View style={styles.cardHeading}>
                 <View style={styles.cardIcon}>
@@ -347,31 +321,20 @@ export default function EnterpriseDetailsScreen() {
                 </View>
 
                 <View style={styles.cardHeadingText}>
-                  <Text style={styles.sectionTitle}>
-                    Contact information
-                  </Text>
+                  <Text style={styles.sectionTitle}>Contact information</Text>
                   <Text style={styles.sectionDescription}>
                     How to reach this enterprise
                   </Text>
                 </View>
               </View>
 
-              {detail(
-                "Contact person",
-                enterprise.contactName,
-              )}
-
-              {detail(
-                "Contact information",
-                enterprise.contactInformation,
-              )}
-
+              {detail("Contact person", enterprise.contactName)}
+              {detail("Contact information", enterprise.contactInformation)}
               {detail("Email address", enterprise.email)}
-
               {detail("Phone number", enterprise.phone)}
             </View>
 
-            {/* Business information */}
+            {/* Registration and business details */}
             <View style={styles.card}>
               <View style={styles.cardHeading}>
                 <View style={styles.cardIcon}>
@@ -384,9 +347,7 @@ export default function EnterpriseDetailsScreen() {
                 </View>
 
                 <View style={styles.cardHeadingText}>
-                  <Text style={styles.sectionTitle}>
-                    Business information
-                  </Text>
+                  <Text style={styles.sectionTitle}>Business information</Text>
                   <Text style={styles.sectionDescription}>
                     Registration and business details
                   </Text>
@@ -394,15 +355,12 @@ export default function EnterpriseDetailsScreen() {
               </View>
 
               {detail("Enterprise name", enterprise.enterpriseName)}
-
               {detail("Registration number", enterprise.registrationNumber)}
-
               {detail("Business address", businessAddress)}
-
               {detail("Registered on", createdAt)}
             </View>
 
-            {/* Account information */}
+            {/* Account identifiers and status */}
             <View style={styles.card}>
               <View style={styles.cardHeading}>
                 <View style={styles.cardIcon}>
@@ -415,9 +373,7 @@ export default function EnterpriseDetailsScreen() {
                 </View>
 
                 <View style={styles.cardHeadingText}>
-                  <Text style={styles.sectionTitle}>
-                    Account information
-                  </Text>
+                  <Text style={styles.sectionTitle}>Account information</Text>
                   <Text style={styles.sectionDescription}>
                     Identifiers and account status
                   </Text>
@@ -425,17 +381,13 @@ export default function EnterpriseDetailsScreen() {
               </View>
 
               {detail("Account status", isActive ? "Active" : "Suspended")}
-
               {detail("User ID", enterprise.userID)}
-
               {detail("Document ID", id)}
             </View>
 
             {/* Administrative actions */}
             <View style={styles.actionsSection}>
-              <Text style={styles.sectionTitle}>
-                Administrative actions
-              </Text>
+              <Text style={styles.sectionTitle}>Administrative actions</Text>
 
               <Text style={styles.actionsDescription}>
                 Manage access to this enterprise account.
@@ -456,9 +408,7 @@ export default function EnterpriseDetailsScreen() {
                   color="#FFFFFF"
                   iconStyle="solid"
                 />
-                <Text style={styles.actionText}>
-                  Suspend account
-                </Text>
+                <Text style={styles.actionText}>Suspend account</Text>
               </Pressable>
 
               <Pressable
@@ -476,9 +426,7 @@ export default function EnterpriseDetailsScreen() {
                   color="#FFFFFF"
                   iconStyle="solid"
                 />
-                <Text style={styles.actionText}>
-                  Delete account
-                </Text>
+                <Text style={styles.actionText}>Delete account</Text>
               </Pressable>
 
               <View style={styles.actionNote}>
@@ -667,9 +615,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: colors.text,
-    ...( {
+    ...({
       userSelect: "text",
-    } as object ),
+    } as object),
   },
 
   // Administrative actions
