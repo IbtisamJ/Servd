@@ -1,20 +1,10 @@
 /**
  * User Details and Account Management Screen
  *
- * Retrieves a selected user's profile from Firestore and
- * displays the account's identifying information, role, and status.
- * Allows authorised administrators to suspend or reactivate eligible
- * accounts by updating the accountStatus field.
- *
- * Responsibilities:
- * - Reads the current authentication role through the auth hook.
- * - Checks the current role before loading the user's details.
- * - Retrieves the selected user document from Firestore.
- * - Displays the user's name, email, role, account status, and ID.
- * - Allows administrators to suspend or reactivate non-admin accounts.
- * - Requests confirmation before changing account status.
- * - Updates accountStatus in Firestore.
- * - Handles loading, permission, missing-record, and update errors.
+ * Retrieves a selected user's profile from Firestore and displays
+ * identifying information, role, and account status.
+ * Allows authorised administrators to suspend or reactivate
+ * eligible accounts.
  */
 
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
@@ -44,6 +34,10 @@ type AdminUser = {
   accountStatus: string;
 };
 
+type IconName = React.ComponentProps<typeof FontAwesome5>["name"];
+
+const colors = Colors.light;
+
 export default function AdminUserDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -56,6 +50,7 @@ export default function AdminUserDetailScreen() {
 
   const loadUser = async () => {
     if (!id || Array.isArray(id)) {
+      setUser(null);
       setError("Invalid user ID.");
       setLoading(false);
       return;
@@ -85,28 +80,27 @@ export default function AdminUserDetailScreen() {
       });
     } catch (err) {
       console.error("Failed to load user:", err);
+      setUser(null);
       setError("Unable to load this user. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Load the selected user's Firestore profile.
   useEffect(() => {
-    if (!authLoading) {
-      if (currentRole !== ROLES.ADMIN) {
-        setError("You must be an admin to view this page.");
-        setLoading(false);
-        return;
-      }
+    if (authLoading) return;
 
-      void loadUser();
+    if (currentRole !== ROLES.ADMIN) {
+      setUser(null);
+      setError("You must be an admin to view this page.");
+      setLoading(false);
+      return;
     }
+
+    void loadUser();
   }, [id, currentRole, authLoading]);
 
-  // Only change accountStatus. The existing Firestore rules permit admins
-  // to update this field without changing the other user permissions.
-  const toggleAccountStatus = async () => {
+  const toggleAccountStatus = () => {
     if (!id || Array.isArray(id) || !user || saving) return;
 
     if (currentRole !== ROLES.ADMIN) {
@@ -140,20 +134,28 @@ export default function AdminUserDetailScreen() {
               setUser((previous) =>
                 previous
                   ? { ...previous, accountStatus: nextStatus }
-                  : previous
+                  : previous,
+              );
+
+              Alert.alert(
+                "Account updated",
+                `The account has been ${
+                  isActive ? "suspended" : "reactivated"
+                }.`,
               );
             } catch (err) {
               console.error("Failed to update account status:", err);
+
               Alert.alert(
                 "Update failed",
-                "The account status could not be changed. Check your permissions and connection."
+                "The account status could not be changed. Check your permissions and connection.",
               );
             } finally {
               setSaving(false);
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -172,101 +174,227 @@ export default function AdminUserDetailScreen() {
 
   const isActive = user?.accountStatus === ACCOUNT_STATUS.ACTIVE;
 
+  const getStatusColors = (status: string) => {
+    if (status === ACCOUNT_STATUS.ACTIVE) {
+      return {
+        backgroundColor: "#DDF0E8",
+        color: "#216E43",
+        icon: "check-circle" as IconName,
+        label: "Active",
+      };
+    }
+
+    if (status === ACCOUNT_STATUS.SUSPENDED) {
+      return {
+        backgroundColor: "#F6DEDA",
+        color: "#A12B24",
+        icon: "ban" as IconName,
+        label: "Suspended",
+      };
+    }
+
+    return {
+      backgroundColor: "#E8E8E8",
+      color: colors.textSecondary,
+      icon: "info-circle" as IconName,
+      label: status,
+    };
+  };
+
   if (authLoading || loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.light.primary} />
-        <Text style={styles.mutedText}>Loading user...</Text>
+        <ActivityIndicator size="large" color={colors.secondary} />
+        <Text style={styles.mutedText}>Loading user details...</Text>
       </View>
     );
   }
 
   if (error || !user) {
     return (
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <FontAwesome5 name="arrow-left" size={16} color={Colors.light.text} iconStyle="solid"/>
-          <Text style={styles.backText}>Back to users</Text>
-        </TouchableOpacity>
-
-        <View style={styles.messageCard}>
-          <FontAwesome5
-            name="exclamation-circle"
-            size={28}
-            color={Colors.light.error}
-            iconStyle="solid"
-          />
-          <Text style={styles.messageText}>
-            {error || "This user could not be found."}
-          </Text>
-          <TouchableOpacity style={styles.secondaryButton} onPress={loadUser}>
-            <Text style={styles.secondaryButtonText}>Try again</Text>
+      <View style={styles.screen}>
+        <View style={styles.errorContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+          >
+            <FontAwesome5
+              name="arrow-left"
+              size={15}
+              color={colors.text}
+              iconStyle="solid"
+            />
+            <Text style={styles.backText}>Back to users</Text>
           </TouchableOpacity>
+
+          <View style={styles.messageCard}>
+            <View style={styles.errorIconCircle}>
+              <FontAwesome5
+                name="exclamation-circle"
+                size={25}
+                color={colors.error}
+                iconStyle="solid"
+              />
+            </View>
+
+            <Text style={styles.messageTitle}>Unable to display user</Text>
+
+            <Text style={styles.messageText}>
+              {error || "This user could not be found."}
+            </Text>
+
+            {currentRole === ROLES.ADMIN && (
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => void loadUser()}
+                accessibilityRole="button"
+              >
+                <FontAwesome5
+                  name="redo"
+                  size={14}
+                  color="#FFFFFF"
+                  iconStyle="solid"
+                />
+                <Text style={styles.secondaryButtonText}>Try again</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
   }
 
+  const statusStyle = getStatusColors(user.accountStatus);
+
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.screen}
       contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <FontAwesome5 name="arrow-left" size={16} color={Colors.light.text} iconStyle="solid"/>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Back to users"
+      >
+        <FontAwesome5
+          name="arrow-left"
+          size={15}
+          color={colors.text}
+          iconStyle="solid"
+        />
         <Text style={styles.backText}>Back to users</Text>
       </TouchableOpacity>
 
-      <Text style={styles.heading}>User details</Text>
-      <Text style={styles.subtitle}>View and manage this account.</Text>
+      <View style={styles.pageHeader}>
+        <Text style={styles.eyebrow}>SERVD / ADMINISTRATION</Text>
+        <Text style={styles.heading}>User details</Text>
+        <Text style={styles.subtitle}>View and manage this account.</Text>
+      </View>
 
+      {/* Profile summary */}
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
           <FontAwesome5
             name="user"
-            size={28}
-            color={Colors.light.primary}
+            size={27}
+            color={colors.secondary}
+            iconStyle="solid"
           />
         </View>
 
         <Text style={styles.userName}>{user.name}</Text>
         <Text style={styles.userEmail}>{user.email}</Text>
 
+        <View style={styles.roleBadge}>
+          <Text style={styles.roleBadgeText}>{getRoleLabel(user.role)}</Text>
+        </View>
+
         <View
           style={[
             styles.statusBadge,
-            isActive ? styles.activeBadge : styles.inactiveBadge,
+            { backgroundColor: statusStyle.backgroundColor },
           ]}
         >
-          <Text
-            style={[
-              styles.statusText,
-              isActive ? styles.activeText : styles.inactiveText,
-            ]}
-          >
-            {user.accountStatus}
+          <FontAwesome5
+            name="filter"
+            size={12}
+            color={colors.textSecondary}
+            iconStyle="solid"
+          />
+          <Text style={[styles.statusText, { color: statusStyle.color }]}>
+            {statusStyle.label}
           </Text>
         </View>
       </View>
 
-      <View style={styles.detailsCard}>
-        <Text style={styles.sectionTitle}>Account information</Text>
+      {/* Account information */}
+      <SectionCard
+        icon="address-card"
+        title="Account information"
+        description="The identifying details associated with this account."
+      >
+        <DetailRow label="Full name" value={user.name} />
+        <DetailRow label="Email address" value={user.email} />
+        <DetailRow label="Account role" value={getRoleLabel(user.role)} />
+        <DetailRow label="Account status" value={user.accountStatus} last />
+      </SectionCard>
 
-        <DetailRow label="Name" value={user.name} />
-        <DetailRow label="Email" value={user.email} />
-        <DetailRow label="Role" value={getRoleLabel(user.role)} />
-        <DetailRow label="Account status" value={user.accountStatus} />
-        <DetailRow label="User ID" value={user.userId} />
-      </View>
+      {/* User record */}
+      <SectionCard
+        icon="fingerprint"
+        title="User record"
+        description="Use this identifier when referencing this user."
+      >
+        <Text style={styles.detailLabel}>User ID</Text>
+        <View style={styles.idContainer}>
+          <Text selectable style={styles.idValue}>
+            {user.userId}
+          </Text>
+          <FontAwesome5
+            name="check-circle"
+            size={15}
+            color={colors.secondary}
+            iconStyle="solid"
+          />
+        </View>
+      </SectionCard>
 
+      {/* Account management */}
       {user.role !== ROLES.ADMIN && (
         <View style={styles.actionCard}>
-          <Text style={styles.sectionTitle}>Account management</Text>
-          <Text style={styles.actionDescription}>
-            {isActive
-              ? "Suspend this account to prevent normal access."
-              : "Reactivate this account to restore normal access."}
-          </Text>
+          <View style={styles.sectionHeadingRow}>
+            <View style={styles.sectionIcon}>
+              <FontAwesome5
+                name="shield-alt"
+                size={17}
+                color={colors.secondary}
+                iconStyle="solid"
+              />
+            </View>
+            <View style={styles.sectionHeadingText}>
+              <Text style={styles.sectionTitle}>Account management</Text>
+              <Text style={styles.sectionDescription}>
+                Manage this user's access to Servd.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.actionNotice}>
+            <FontAwesome5
+              name="info-circle"
+              size={15}
+              color={colors.textSecondary}
+              iconStyle="solid"
+            />
+            <Text style={styles.actionDescription}>
+              {isActive
+                ? "Suspending this account prevents normal account access."
+                : "Reactivating this account restores normal account access."}
+            </Text>
+          </View>
 
           <TouchableOpacity
             style={[
@@ -276,6 +404,10 @@ export default function AdminUserDetailScreen() {
             ]}
             onPress={toggleAccountStatus}
             disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isActive ? "Suspend account" : "Reactivate account"
+            }
           >
             {saving ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -293,16 +425,61 @@ export default function AdminUserDetailScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          <Text style={styles.actionFootnote}>
+            Administrator accounts cannot be suspended from this screen.
+          </Text>
         </View>
       )}
     </ScrollView>
   );
 }
 
-// Reusable row for displaying a user field.
-function DetailRow({ label, value }: { label: string; value: string }) {
+function SectionCard({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: IconName;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
-    <View style={styles.detailRow}>
+    <View style={styles.detailsCard}>
+      <View style={styles.sectionHeadingRow}>
+        <View style={styles.sectionIcon}>
+          <FontAwesome5
+            name="check-circle"
+            size={16}
+            color={colors.textSecondary}
+            iconStyle="solid"
+          />
+        </View>
+
+        <View style={styles.sectionHeadingText}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionDescription}>{description}</Text>
+        </View>
+      </View>
+
+      <View style={styles.rowsContainer}>{children}</View>
+    </View>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  last = false,
+}: {
+  label: string;
+  value: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={[styles.detailRow, last && styles.lastDetailRow]}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text selectable style={styles.detailValue}>
         {value}
@@ -312,26 +489,33 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   content: {
     padding: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.six,
     gap: Spacing.three,
+    maxWidth: 800,
+    width: "100%",
+    alignSelf: "center",
   },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
     gap: Spacing.two,
     padding: Spacing.three,
   },
   mutedText: {
-    color: Colors.light.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
+  },
+  errorContent: {
+    padding: Spacing.three,
+    gap: Spacing.three,
   },
   backButton: {
     flexDirection: "row",
@@ -341,106 +525,178 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   backText: {
-    color: Colors.light.text,
+    color: colors.text,
     fontSize: 14,
     fontWeight: "600",
   },
+  pageHeader: {
+    gap: Spacing.one,
+    marginBottom: Spacing.one,
+  },
+  eyebrow: {
+    color: colors.secondary,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    marginBottom: Spacing.one,
+  },
   heading: {
-    color: Colors.light.text,
-    fontSize: 26,
+    color: colors.text,
+    fontSize: 28,
     fontWeight: "700",
   },
   subtitle: {
-    color: Colors.light.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
-    marginTop: -Spacing.two,
+    lineHeight: 21,
   },
   profileCard: {
     alignItems: "center",
-    backgroundColor: Colors.light.backgroundElement,
+    backgroundColor: colors.background,
     borderRadius: Radius.lg,
     padding: Spacing.four,
     gap: Spacing.two,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#DDF0EE",
     marginBottom: Spacing.one,
   },
   userName: {
-    color: Colors.light.text,
-    fontSize: 20,
+    color: colors.text,
+    fontSize: 21,
     fontWeight: "700",
     textAlign: "center",
   },
   userEmail: {
-    color: Colors.light.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     textAlign: "center",
+    lineHeight: 20,
   },
-  statusBadge: {
+  roleBadge: {
+    backgroundColor: colors.backgroundElement,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
     marginTop: Spacing.one,
   },
-  activeBadge: {
-    backgroundColor: "#DDEFE4",
+  roleBadgeText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
   },
-  inactiveBadge: {
-    backgroundColor: "#F8DEDE",
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    marginTop: Spacing.one,
   },
   statusText: {
     fontSize: 12,
     fontWeight: "700",
     textTransform: "capitalize",
   },
-  activeText: {
-    color: "#216E43",
-  },
-  inactiveText: {
-    color: "#9B2424",
-  },
   detailsCard: {
-    backgroundColor: Colors.light.backgroundElement,
+    backgroundColor: colors.background,
     borderRadius: Radius.lg,
     padding: Spacing.three,
     gap: Spacing.three,
   },
+  sectionHeadingRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.two,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.md,
+    backgroundColor: "#DDF0EE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionHeadingText: {
+    flex: 1,
+    gap: Spacing.one,
+    paddingTop: 1,
+  },
   sectionTitle: {
-    color: Colors.light.text,
-    fontSize: 17,
+    color: colors.text,
+    fontSize: 16,
     fontWeight: "700",
+  },
+  sectionDescription: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  rowsContainer: {
+    gap: Spacing.three,
   },
   detailRow: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.light.textSecondary,
+    borderBottomColor: colors.backgroundElement,
     paddingBottom: Spacing.two,
     gap: Spacing.one,
   },
+  lastDetailRow: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
   detailLabel: {
-    color: Colors.light.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
   },
   detailValue: {
-    color: Colors.light.text,
+    color: colors.text,
     fontSize: 14,
+    lineHeight: 21,
+  },
+  idContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    padding: Spacing.three,
+  },
+  idValue: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 19,
   },
   actionCard: {
-    backgroundColor: Colors.light.backgroundElement,
+    backgroundColor: colors.background,
     borderRadius: Radius.lg,
     padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  actionNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: Spacing.two,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.md,
+    padding: Spacing.three,
   },
   actionDescription: {
-    color: Colors.light.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
   },
   actionButton: {
     flexDirection: "row",
@@ -448,14 +704,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: Spacing.two,
     borderRadius: Radius.md,
-    padding: Spacing.three,
-    marginTop: Spacing.one,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    minHeight: 48,
   },
   suspendButton: {
-    backgroundColor: Colors.light.error,
+    backgroundColor: colors.error,
   },
   reactivateButton: {
-    backgroundColor: Colors.light.secondary,
+    backgroundColor: colors.secondary,
   },
   disabledButton: {
     opacity: 0.6,
@@ -465,28 +722,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  actionFootnote: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 17,
+    textAlign: "center",
+  },
   messageCard: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.light.backgroundElement,
+    backgroundColor: colors.background,
     borderRadius: Radius.lg,
     padding: Spacing.four,
     gap: Spacing.three,
     marginTop: Spacing.four,
   },
-  messageText: {
-    color: Colors.light.text,
+  errorIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#F6DEDA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  messageTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "700",
     textAlign: "center",
-    fontSize: 15,
+  },
+  messageText: {
+    color: colors.textSecondary,
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 21,
   },
   secondaryButton: {
-    backgroundColor: Colors.light.secondary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    backgroundColor: colors.secondary,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.three,
   },
   secondaryButtonText: {
     color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "700",
   },
 });
