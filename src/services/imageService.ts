@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 
 // Replace these two strings with your actual Cloudinary values from Step 1
-const CLOUDINARY_CLOUD_NAME = "YOUR_CLOUD_NAME";
+const CLOUDINARY_CLOUD_NAME = "hfimsm9w";
 const CLOUDINARY_UPLOAD_PRESET = "servd_uploads";
 
 /**
