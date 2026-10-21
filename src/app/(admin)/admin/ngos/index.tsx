@@ -33,10 +33,17 @@ import {
 
 import { db } from "@/config/firebase";
 import { COLLECTIONS, NGO_STATUS } from "@/constants/roles";
-import { Colors, Fonts, Radius, Spacing, MaxContentWidth } from "@/constants/theme";
+import {
+  Colors,
+  Fonts,
+  Radius,
+  Spacing,
+  MaxContentWidth,
+} from "@/constants/theme";
 
 const colors = Colors.light;
 
+// Defines the NGO details used by the management screen.
 type NGO = {
   id: string;
   contactInfo?: string;
@@ -47,27 +54,29 @@ type NGO = {
   verificationStatus?: string;
 };
 
+// Defines the available status filters.
 const filters = ["All", "Pending", "Approved", "Rejected"] as const;
 type NGOFilter = (typeof filters)[number];
 
 export default function NGOsPage() {
   const router = useRouter();
 
+  // Stores NGO records, search input, selected filter, and request state.
   const [ngos, setNgos] = useState<NGO[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<NGOFilter>("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Retrieves all registered NGOs from Firestore.
   const loadNGOs = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const snapshot = await getDocs(
-        collection(db, COLLECTIONS.NGOS),
-      );
+      const snapshot = await getDocs(collection(db, COLLECTIONS.NGOS));
 
+      // Adds each Firestore document ID to its NGO record.
       setNgos(
         snapshot.docs.map((document) => ({
           id: document.id,
@@ -76,26 +85,27 @@ export default function NGOsPage() {
       );
     } catch (err) {
       console.error("Failed to load NGOs:", err);
-      setError(
-        "Unable to load NGOs. Check your connection and permissions.",
-      );
+      setError("Unable to load NGOs. Check your connection and permissions.");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Loads the NGO list when the screen mounts.
   useEffect(() => {
     loadNGOs();
   }, [loadNGOs]);
 
-  const getName = (ngo: NGO) =>
-    ngo.organisationName || "Unnamed NGO";
+  // Provides fallback values for missing organisation details.
+  const getName = (ngo: NGO) => ngo.organisationName || "Unnamed NGO";
 
   const getNumber = (ngo: NGO) => ngo.npoNumber || "";
 
+  // Defaults missing verification statuses to pending.
   const getStatus = (ngo: NGO) =>
     (ngo.verificationStatus || NGO_STATUS.PENDING).toLowerCase();
 
+  // Calculates the number of NGOs in each verification category.
   const pendingCount = ngos.filter(
     (ngo) => getStatus(ngo) === NGO_STATUS.PENDING,
   ).length;
@@ -108,30 +118,25 @@ export default function NGOsPage() {
     (ngo) => getStatus(ngo) === NGO_STATUS.REJECTED,
   ).length;
 
+  // Applies the search query and selected status filter.
   const filteredNGOs = useMemo(
     () =>
       ngos.filter((ngo) => {
-        const searchText = [
-          getName(ngo),
-          getNumber(ngo),
-          ngo.contactInfo ?? "",
-        ]
+        const searchText = [getName(ngo), getNumber(ngo), ngo.contactInfo ?? ""]
           .join(" ")
           .toLowerCase();
 
-        const matchesSearch = searchText.includes(
-          search.trim().toLowerCase(),
-        );
+        const matchesSearch = searchText.includes(search.trim().toLowerCase());
 
         const matchesFilter =
-          filter === "All" ||
-          getStatus(ngo) === filter.toLowerCase();
+          filter === "All" || getStatus(ngo) === filter.toLowerCase();
 
         return matchesSearch && matchesFilter;
       }),
     [ngos, search, filter],
   );
 
+  // Selects the badge background based on verification status.
   const statusStyle = (status: string) => {
     if (status === NGO_STATUS.APPROVED) return styles.approved;
     if (status === NGO_STATUS.REJECTED) return styles.rejected;
@@ -145,14 +150,14 @@ export default function NGOsPage() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Page heading */}
+      {/* Page heading and manual refresh action. */}
       <View style={styles.pageHeader}>
         <View style={styles.pageHeadingGroup}>
           <Text style={styles.eyebrow}>SERVD / ADMINISTRATION</Text>
           <Text style={styles.heading}>NGO management</Text>
           <Text style={styles.description}>
-            Review organisations, track verification status, and manage
-            NGO registrations.
+            Review organisations, track verification status, and manage NGO
+            registrations.
           </Text>
         </View>
 
@@ -172,13 +177,11 @@ export default function NGOsPage() {
         </Pressable>
       </View>
 
-      {/* Overview statistics */}
+      {/* Summary cards show totals and filter the list when selected. */}
       <View style={styles.summarySection}>
         <View style={styles.sectionHeadingRow}>
           <Text style={styles.sectionTitle}>Overview</Text>
-          <Text style={styles.mutedText}>
-            {ngos.length} registered
-          </Text>
+          <Text style={styles.mutedText}>{ngos.length} registered</Text>
         </View>
 
         <View style={styles.summaryRow}>
@@ -209,7 +212,7 @@ export default function NGOsPage() {
         </View>
       </View>
 
-      {/* Search */}
+      {/* Searches NGO names, registration numbers, and contact information. */}
       <View style={styles.searchBox}>
         <FontAwesome5
           name="search"
@@ -228,6 +231,7 @@ export default function NGOsPage() {
           returnKeyType="search"
         />
 
+        {/* Clears the current search query. */}
         {search.length > 0 && (
           <Pressable
             onPress={() => setSearch("")}
@@ -244,7 +248,7 @@ export default function NGOsPage() {
         )}
       </View>
 
-      {/* Status filters */}
+      {/* Status filters include a count for each category. */}
       <View style={styles.filterSection}>
         <Text style={styles.filterHeading}>Filter by status</Text>
 
@@ -307,7 +311,7 @@ export default function NGOsPage() {
         </ScrollView>
       </View>
 
-      {/* Organisation list */}
+      {/* Displays the list heading and the number of matching results. */}
       <View style={styles.resultsHeader}>
         <View style={styles.resultsHeading}>
           <Text style={styles.sectionTitle}>Organisations</Text>
@@ -324,12 +328,14 @@ export default function NGOsPage() {
         )}
       </View>
 
+      {/* Shows the loading, error, empty, or filtered-list state. */}
       {loading ? (
         <View style={styles.stateContainer}>
           <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.stateText}>Loading organisations...</Text>
         </View>
       ) : error ? (
+        // Tapping the error state retries the Firestore request.
         <Pressable
           onPress={loadNGOs}
           style={styles.stateContainer}
@@ -345,6 +351,7 @@ export default function NGOsPage() {
           <Text style={styles.retry}>Tap to retry</Text>
         </Pressable>
       ) : filteredNGOs.length === 0 ? (
+        // Explains why the list is empty and offers to clear active filters.
         <View style={styles.stateContainer}>
           <FontAwesome5
             name="search"
@@ -367,13 +374,12 @@ export default function NGOsPage() {
               }}
               style={styles.clearFiltersButton}
             >
-              <Text style={styles.clearFiltersText}>
-                Clear filters
-              </Text>
+              <Text style={styles.clearFiltersText}>Clear filters</Text>
             </Pressable>
           )}
         </View>
       ) : (
+        // Renders matching NGO cards that navigate to their profile screens.
         <View style={styles.ngoList}>
           {filteredNGOs.map((ngo) => {
             const status = getStatus(ngo);
@@ -383,9 +389,7 @@ export default function NGOsPage() {
             return (
               <Pressable
                 key={ngo.id}
-                onPress={() =>
-                  router.push(`/admin/ngos/${ngo.id}` as never)
-                }
+                onPress={() => router.push(`/admin/ngos/${ngo.id}` as never)}
                 style={styles.ngoCard}
                 accessibilityRole="button"
                 accessibilityLabel={`View ${getName(ngo)}`}
@@ -400,22 +404,18 @@ export default function NGOsPage() {
                 </View>
 
                 <View style={styles.ngoInfo}>
-                  <Text style={styles.ngoName}>
-                    {getName(ngo)}
-                  </Text>
+                  <Text style={styles.ngoName}>{getName(ngo)}</Text>
 
                   <Text style={styles.ngoEmail}>
-                    {ngo.contactInfo ||
-                      "No contact information provided"}
+                    {ngo.contactInfo || "No contact information provided"}
                   </Text>
 
                   <Text style={styles.ngoNumber}>
                     {getNumber(ngo) || "No registration number"}
                   </Text>
 
-                  <View
-                    style={[styles.statusBadge, statusStyle(status)]}
-                  >
+                  {/* Shows the NGO's current verification status. */}
+                  <View style={[styles.statusBadge, statusStyle(status)]}>
                     <View
                       style={[
                         styles.statusDot,
@@ -426,9 +426,7 @@ export default function NGOsPage() {
                             : styles.pendingDot,
                       ]}
                     />
-                    <Text style={styles.statusText}>
-                      {formattedStatus}
-                    </Text>
+                    <Text style={styles.statusText}>{formattedStatus}</Text>
                   </View>
                 </View>
 
@@ -447,8 +445,10 @@ export default function NGOsPage() {
   );
 }
 
+// Defines the icon names accepted by the overview summary cards.
 type SummaryIcon = "clock" | "check-circle" | "times-circle";
 
+// Renders a clickable status summary card with its count and icon.
 function Summary({
   label,
   value,
@@ -467,31 +467,16 @@ function Summary({
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.summaryCard,
-        active && styles.summaryCardActive,
-      ]}
+      style={[styles.summaryCard, active && styles.summaryCardActive]}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value}. Filter NGOs by ${label.toLowerCase()}`}
     >
       <View style={styles.summaryTopRow}>
-        <View
-          style={[
-            styles.summaryIcon,
-            { backgroundColor: `${color}15` },
-          ]}
-        >
-          <FontAwesome5
-            name={icon}
-            size={14}
-            color={color}
-            iconStyle="solid"
-          />
+        <View style={[styles.summaryIcon, { backgroundColor: `${color}15` }]}>
+          <FontAwesome5 name={icon} size={14} color={color} iconStyle="solid" />
         </View>
 
-        <Text style={[styles.summaryValue, { color }]}>
-          {value}
-        </Text>
+        <Text style={[styles.summaryValue, { color }]}>{value}</Text>
       </View>
 
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -499,6 +484,7 @@ function Summary({
   );
 }
 
+// Defines layout, typography, colors, and spacing for the NGO management screen.
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -624,93 +610,93 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  /* Search — match the Donations screen */
-searchBox: {
-  minHeight: 46,
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 10,
-  paddingHorizontal: 14,
-  backgroundColor: "#FFFFFF",
-  borderWidth: 1,
-  borderColor: colors.backgroundElement,
-  borderRadius: Radius.md,
-},
-searchInput: {
-  flex: 1,
-  minWidth: 0,
-  paddingVertical: 10,
-  fontFamily: Fonts.body,
-  fontSize: 13,
-  color: colors.text,
-},
-clearSearch: {
-  padding: 4,
-},
+  // Search
+  searchBox: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.md,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: colors.text,
+  },
+  clearSearch: {
+    padding: 4,
+  },
 
-/* Status filters */
-filterSection: {
-  gap: 8,
-},
-filterHeading: {
-  fontFamily: Fonts.body,
-  fontSize: 12,
-  fontWeight: "700",
-  color: colors.text,
-},
-filters: {
-  flexDirection: "row",
-  flexWrap: "wrap",
-  gap: 7,
-},
-filter: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-  paddingHorizontal: 10,
-  paddingVertical: 7,
-  backgroundColor: "#FFFFFF",
-  borderWidth: 1,
-  borderColor: colors.backgroundElement,
-  borderRadius: 20,
-},
-filterActive: {
-  backgroundColor: colors.primary,
-  borderColor: colors.primary,
-},
-filterPressed: {
-  opacity: 0.75,
-},
-filterText: {
-  fontFamily: Fonts.body,
-  fontSize: 11,
-  color: colors.textSecondary,
-},
-filterTextActive: {
-  fontWeight: "700",
-  color: "#FFFFFF",
-},
-filterCount: {
-  minWidth: 18,
-  height: 18,
-  paddingHorizontal: 4,
-  borderRadius: 9,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: colors.backgroundElement,
-},
-filterCountActive: {
-  backgroundColor: "rgba(255,255,255,0.22)",
-},
-filterCountText: {
-  fontFamily: Fonts.body,
-  fontSize: 10,
-  fontWeight: "700",
-  color: colors.textSecondary,
-},
-filterCountTextActive: {
-  color: "#FFFFFF",
-},
+  // Status filters
+  filterSection: {
+    gap: 8,
+  },
+  filterHeading: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  filters: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  filter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: 20,
+  },
+  filterActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterPressed: {
+    opacity: 0.75,
+  },
+  filterText: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  filterTextActive: {
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  filterCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.backgroundElement,
+  },
+  filterCountActive: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  filterCountText: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  filterCountTextActive: {
+    color: "#FFFFFF",
+  },
 
   // Organisation list
   resultsHeader: {

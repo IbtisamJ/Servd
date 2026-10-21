@@ -39,8 +39,10 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 
 const colors = Colors.light;
 
+// Defines the available icon names for FontAwesome5.
 type IconName = React.ComponentProps<typeof FontAwesome5>["name"];
 
+// Describes the NGO information retrieved from Firestore.
 type NGO = {
   contactInfo?: string;
   createdAt?: { toDate?: () => Date } | string;
@@ -50,17 +52,21 @@ type NGO = {
   verificationStatus?: string;
 };
 
+// Defines the available application review decisions.
 type Decision = "approve" | "reject";
 
 export default function NGOProfilePage() {
+  // Retrieves the NGO document ID from the route parameters.
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
+  // Stores the NGO details, rejection reason, and loading/error states.
   const [ngo, setNgo] = useState<NGO | null>(null);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fetches the selected NGO's details from Firestore.
   const loadNGO = useCallback(async () => {
     if (!id) {
       setNgo(null);
@@ -75,6 +81,7 @@ export default function NGOProfilePage() {
     try {
       const snapshot = await getDoc(doc(db, COLLECTIONS.NGOS, id));
 
+      // Handle cases where the requested NGO does not exist.
       if (!snapshot.exists()) {
         setNgo(null);
         setError("NGO not found.");
@@ -93,13 +100,16 @@ export default function NGOProfilePage() {
     }
   }, [id]);
 
+  // Loads the NGO whenever the route ID or loader changes.
   useEffect(() => {
     loadNGO();
   }, [loadNGO]);
 
+  // Prepares display values and fallback text for missing information.
   const name = ngo?.organisationName || "Unnamed NGO";
   const status = (ngo?.verificationStatus || NGO_STATUS.PENDING).toLowerCase();
 
+  // Formats the submission date from either a Firestore timestamp or string.
   const submitted = (() => {
     const value = ngo?.createdAt;
 
@@ -116,6 +126,7 @@ export default function NGOProfilePage() {
     return "Not provided";
   })();
 
+  // Returns badge colors and an icon based on the verification status.
   const getStatusStyle = () => {
     switch (status) {
       case "approved":
@@ -149,6 +160,7 @@ export default function NGOProfilePage() {
    * No changes are currently written to Firestore by these actions.
    */
   const confirmDecision = (decision: Decision) => {
+    // Require a rejection reason before continuing with a rejection.
     if (decision === "reject" && !reason.trim()) {
       Alert.alert(
         "Reason required",
@@ -157,6 +169,7 @@ export default function NGOProfilePage() {
       return;
     }
 
+    // Ask the administrator to confirm the selected decision.
     Alert.alert(
       `${decision === "approve" ? "Approve" : "Reject"} NGO`,
       `${decision === "approve" ? "Approve" : "Reject"} ${name}?`,
@@ -188,6 +201,7 @@ export default function NGOProfilePage() {
     );
   };
 
+  // Renders a reusable label and value pair for NGO information.
   function detail(label: string, value?: string) {
     return (
       <View style={styles.detail} key={label}>
@@ -199,6 +213,7 @@ export default function NGOProfilePage() {
     );
   }
 
+  // Provides a reusable card layout for grouping related details.
   function SectionCard({
     title,
     icon,
@@ -229,6 +244,7 @@ export default function NGOProfilePage() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.container}>
+        {/* Returns the administrator to the previous screen. */}
         <Pressable
           style={styles.back}
           onPress={() => router.back()}
@@ -244,6 +260,7 @@ export default function NGOProfilePage() {
           <Text style={styles.backText}>Back to NGOs</Text>
         </Pressable>
 
+        {/* Displays loading, error, or NGO details based on the current state. */}
         {loading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator color={colors.secondary} size="large" />
@@ -262,6 +279,7 @@ export default function NGOProfilePage() {
             <Text style={styles.stateTitle}>Unable to load NGO</Text>
             <Text style={styles.error}>{error}</Text>
 
+            {/* Allows the administrator to retry loading the NGO. */}
             <Pressable style={styles.retryButton} onPress={loadNGO}>
               <FontAwesome5
                 name="redo"
@@ -274,7 +292,7 @@ export default function NGOProfilePage() {
           </View>
         ) : ngo ? (
           <>
-            {/* NGO header */}
+            {/* NGO header and verification status. */}
             <View style={styles.hero}>
               <View style={styles.heroTop}>
                 <View style={styles.avatar}>
@@ -312,6 +330,7 @@ export default function NGOProfilePage() {
                 information.
               </Text>
 
+              {/* Shows the document ID for application reference. */}
               <View style={styles.idRow}>
                 <Text style={styles.idLabel}>APPLICATION ID</Text>
                 <Text style={styles.idValue} selectable>
@@ -320,17 +339,20 @@ export default function NGOProfilePage() {
               </View>
             </View>
 
+            {/* Displays registration and submission details. */}
             <SectionCard title="Organisation details" icon="building">
               {detail("Registered organisation name", name)}
               {detail("NPO registration number", ngo.npoNumber)}
               {detail("Application submitted", submitted)}
             </SectionCard>
 
+            {/* Displays contact details and the associated user ID. */}
             <SectionCard title="Contact information" icon="address-card">
               {detail("Contact information", ngo.contactInfo)}
               {detail("Associated user ID", ngo.userId)}
             </SectionCard>
 
+            {/* Provides the rejection reason field and review actions. */}
             <SectionCard title="Review application" icon="clipboard-check">
               <View style={styles.reviewNotice}>
                 <FontAwesome5
@@ -367,6 +389,7 @@ export default function NGOProfilePage() {
                 />
               </View>
 
+              {/* Opens the approval confirmation prompt. */}
               <Pressable
                 style={styles.approveButton}
                 onPress={() => confirmDecision("approve")}
@@ -381,6 +404,7 @@ export default function NGOProfilePage() {
                 <Text style={styles.buttonText}>Approve NGO</Text>
               </Pressable>
 
+              {/* Opens the rejection confirmation prompt. */}
               <Pressable
                 style={styles.rejectButton}
                 onPress={() => confirmDecision("reject")}
@@ -402,6 +426,7 @@ export default function NGOProfilePage() {
   );
 }
 
+// Defines layout, typography, colors, and spacing for the profile screen.
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
