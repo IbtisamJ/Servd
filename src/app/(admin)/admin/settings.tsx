@@ -33,9 +33,10 @@ export default function AdminSettingsScreen() {
   const router = useRouter();
   const { user, profile, role, loading } = useAuth();
 
+  // Tracks whether the sign-out process is in progress.
   const [signingOut, setSigningOut] = useState(false);
 
-  // Sign out through Firebase Authentication.
+  // Confirms the admin's choice before signing out of Firebase Authentication.
   const handleSignOut = () => {
     Alert.alert(
       "Sign out?",
@@ -50,9 +51,10 @@ export default function AdminSettingsScreen() {
               setSigningOut(true);
               await signOut(auth);
 
-              // Replace the current screen so Back does not return to settings.
+              // Redirects to login and prevents returning to settings using Back.
               router.replace("/login" as never);
             } catch (error) {
+              // Displays an error message if signing out fails.
               console.error("Failed to sign out:", error);
               Alert.alert(
                 "Sign out failed",
@@ -67,6 +69,7 @@ export default function AdminSettingsScreen() {
     );
   };
 
+  // Shows a loading indicator while authentication details are being retrieved.
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -76,7 +79,7 @@ export default function AdminSettingsScreen() {
     );
   }
 
-  // Prevent non-admin accounts from using the admin settings screen.
+  // Prevents users without a valid admin role and profile from accessing settings.
   if (!user || role !== ROLES.ADMIN || !profile) {
     return (
       <View style={styles.centered}>
@@ -110,6 +113,7 @@ export default function AdminSettingsScreen() {
         Manage your admin account and session.
       </Text>
 
+      {/* Displays the administrator's profile details. */}
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
           <FontAwesome5
@@ -128,6 +132,7 @@ export default function AdminSettingsScreen() {
         </View>
       </View>
 
+      {/* Shows the account information retrieved from the user profile. */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account information</Text>
 
@@ -153,6 +158,7 @@ export default function AdminSettingsScreen() {
         />
       </View>
 
+      {/* Provides the option to sign out of the current admin session. */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Session</Text>
         <Text style={styles.description}>
@@ -188,7 +194,7 @@ export default function AdminSettingsScreen() {
   );
 }
 
-// Reusable row for account settings information.
+// Reusable row for displaying an account setting with its icon, label, and value.
 function SettingsRow({
   icon,
   label,
@@ -218,6 +224,7 @@ function SettingsRow({
   );
 }
 
+// Defines the styles for the settings screen and its components.
 const styles = StyleSheet.create({
   container: {
     flex: 1,

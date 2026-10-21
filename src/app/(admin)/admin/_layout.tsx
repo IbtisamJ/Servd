@@ -25,6 +25,7 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 const colors = Colors.light;
 const BREAKPOINT = 768;
 
+// Defines the navigation links, icons, and which items appear on mobile.
 const navigationItems = [
   { label: "Dashboard", href: "/admin", icon: "th-large", mobile: true },
   { label: "NGOs", href: "/admin/ngos", icon: "users", mobile: true },
@@ -47,6 +48,7 @@ const navigationItems = [
 
 type NavItem = (typeof navigationItems)[number];
 
+// Checks whether a navigation link matches the current route.
 function activeRoute(pathname: string, href: string) {
   return href === "/admin"
     ? pathname === href
@@ -57,25 +59,30 @@ export default function AdminLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const { width } = useWindowDimensions();
+
+  // Switches between desktop and mobile layouts based on screen width.
   const desktop = width >= BREAKPOINT;
   const [moreOpen, setMoreOpen] = useState(false);
 
+  // Finds the current page to display its title in the header.
   const current =
     navigationItems.find((item) => activeRoute(pathname, item.href)) ??
     navigationItems[0];
 
+  // Separates the navigation items shown directly on mobile from the extra menu.
   const mobileItems = navigationItems.filter((item) => item.mobile);
   const moreItems = navigationItems.filter((item) => !item.mobile);
   const moreActive = moreItems.some((item) =>
     activeRoute(pathname, item.href)
   );
 
-  // Close the extra navigation menu whenever a route is selected.
+  // Closes the extra navigation menu and navigates to the selected page.
   const navigate = (href: string) => {
     setMoreOpen(false);
     router.push(href as Href);
   };
 
+  // Creates a reusable navigation button with an active-page style.
   const navButton = (item: NavItem, compact = false) => {
     const active = activeRoute(pathname, item.href);
 
@@ -118,6 +125,7 @@ export default function AdminLayout() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.container}>
         {desktop && (
+          // Displays the full navigation sidebar on desktop screens.
           <View style={styles.sidebar}>
             <View style={styles.brandContainer}>
               <Image
@@ -177,7 +185,7 @@ export default function AdminLayout() {
             </View>
           </View>
 
-          {/* Individual screens render here inside the shared workspace. */}
+          {/* Renders the selected admin screen inside the shared layout. */}
           <View style={styles.content}>
             <Slot />
           </View>
@@ -186,6 +194,7 @@ export default function AdminLayout() {
             <>
               {moreOpen && (
                 <>
+                  {/* Closes the extra menu when the area behind it is pressed. */}
                   <Pressable
                     onPress={() => setMoreOpen(false)}
                     style={styles.backdrop}
@@ -193,6 +202,7 @@ export default function AdminLayout() {
                     accessibilityLabel="Close navigation menu"
                   />
 
+                  {/* Shows the navigation items that do not fit in the mobile bar. */}
                   <View style={styles.moreMenu}>
                     <Text style={styles.menuHeading}>MORE</Text>
                     {moreItems.map((item) => navButton(item))}
@@ -200,6 +210,7 @@ export default function AdminLayout() {
                 </>
               )}
 
+              {/* Displays the main mobile navigation and the More toggle. */}
               <View style={styles.bottomNav}>
                 {mobileItems.map((item) => navButton(item, true))}
 
@@ -250,6 +261,7 @@ export default function AdminLayout() {
   );
 }
 
+// Defines the styles used by the desktop sidebar, page header, and mobile navigation.
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
@@ -283,7 +295,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     marginBottom: Spacing.four,
   },
-  // The image keeps its original 625:677 aspect ratio.
+  // Keeps the logo within its allocated space without distorting it.
   logo: {
     width: 112,
     height: 104,
@@ -315,6 +327,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "transparent",
   },
+  // Highlights the selected navigation item.
   activeItem: {
     backgroundColor: "#FFF4F1",
     borderLeftColor: colors.primary,
@@ -413,7 +426,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
 
-  // Warm off-white distinguishes page content from the white frame.
+  // Styles the area where each admin screen is displayed.
   content: {
   flex: 1,
   minHeight: 0,
@@ -449,7 +462,7 @@ const styles = StyleSheet.create({
     color: "#626269",
   },
 
-  // Additional mobile navigation opens above the bottom bar.
+  // Positions the extra navigation menu above the mobile bottom bar.
   backdrop: {
     position: "absolute",
     top: 0,

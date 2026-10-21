@@ -42,6 +42,7 @@ const RED_LIGHT = "#FCECEB";
 const OLIVE_LIGHT = "#F0F3E8";
 const PURPLE_LIGHT = "#F0EDFA";
 
+// Defines the structure of dashboard records and statistic cards.
 type DashboardRecord = {
   id: string;
   [key: string]: any;
@@ -55,6 +56,7 @@ type DashboardStat = {
   iconBackground: string;
 };
 
+// Converts different date formats into a timestamp for sorting and display.
 function getTimestamp(value: any): number {
   if (!value) return 0;
 
@@ -70,6 +72,7 @@ function getTimestamp(value: any): number {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
+// Formats a date for display or returns a fallback when it is unavailable.
 function formatDate(value: any): string {
   const timestamp = getTimestamp(value);
 
@@ -82,6 +85,7 @@ function formatDate(value: any): string {
   });
 }
 
+// Returns the appropriate background colour, text colour, and label for a status.
 function getStatusStyle(status: string) {
   switch (status.toLowerCase()) {
     case "available":
@@ -118,6 +122,7 @@ function getStatusStyle(status: string) {
   }
 }
 
+// Reusable section heading with an optional subtitle and action button.
 function SectionHeading({
   title,
   subtitle,
@@ -160,6 +165,7 @@ function SectionHeading({
   );
 }
 
+// Displays a message and icon when a section has no records to show.
 function EmptyState({
   icon,
   title,
@@ -189,9 +195,11 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
+  // Adjusts spacing and card layout according to the screen width.
   const horizontalPadding = width >= 1100 ? 36 : width >= 700 ? 28 : 16;
   const isCompact = width < 520;
 
+  // Stores the dashboard records, summary statistics, and loading/error states.
   const [pendingNGOs, setPendingNGOs] = useState<DashboardRecord[]>([]);
   const [donations, setDonations] = useState<DashboardRecord[]>([]);
   const [stats, setStats] = useState<DashboardStat[]>([
@@ -227,13 +235,16 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Navigates to the selected admin page.
   const goTo = (path: string) => router.push(path as never);
 
+  // Fetches dashboard data and updates the records and summary statistics.
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
+      // Requests all four sets of records at the same time.
       const [ngoResult, donationResult, reservationResult, userResult] =
         await Promise.all([
           getPendingNGOs(),
@@ -242,6 +253,7 @@ export default function AdminDashboard() {
           manageUsers(),
         ]);
 
+      // Stops processing if any service request fails.
       if (!ngoResult.success) {
         throw new Error(ngoResult.error || "Could not load pending NGOs.");
       }
@@ -260,22 +272,26 @@ export default function AdminDashboard() {
         throw new Error(userResult.error || "Could not load users.");
       }
 
+      // Uses the returned records or empty arrays when no data is available.
       const ngoRecords = (ngoResult.data || []) as DashboardRecord[];
       const donationRecords = (donationResult.data || []) as DashboardRecord[];
       const reservationRecords = (reservationResult.data ||
         []) as DashboardRecord[];
       const userRecords = (userResult.data || []) as DashboardRecord[];
 
+      // Counts donations that are available or reserved.
       const activeDonations = donationRecords.filter((donation) => {
         const status = String(donation.status || "").toLowerCase();
         return status === "available" || status === "reserved";
       });
 
+      // Counts reservations with an active status.
       const activeReservations = reservationRecords.filter(
         (reservation) =>
           String(reservation.status || "").toLowerCase() === "active",
       );
 
+      // Sorts donations from newest to oldest and keeps the three most recent.
       const recentDonationRecords = [...donationRecords]
         .sort(
           (a, b) =>
@@ -284,9 +300,11 @@ export default function AdminDashboard() {
         )
         .slice(0, 3);
 
+      // Saves the three latest NGO applications and donation records for display.
       setPendingNGOs(ngoRecords.slice(0, 3));
       setDonations(recentDonationRecords);
 
+      // Updates the summary cards with the latest record counts.
       setStats([
         {
           label: "Pending NGO approvals",
@@ -318,6 +336,7 @@ export default function AdminDashboard() {
         },
       ]);
     } catch (err) {
+      // Logs the error and displays a message if loading fails.
       console.error("Error loading admin dashboard:", err);
       setError(
         err instanceof Error
@@ -325,10 +344,12 @@ export default function AdminDashboard() {
           : "Something went wrong while loading the dashboard.",
       );
     } finally {
+      // Stops the loading indicator whether the request succeeds or fails.
       setLoading(false);
     }
   }, []);
 
+  // Loads dashboard data when the screen first opens.
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
@@ -355,6 +376,7 @@ export default function AdminDashboard() {
             </Text>
           </View>
 
+          {/* Lets the admin reload dashboard data manually. */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Refresh dashboard"
@@ -378,6 +400,7 @@ export default function AdminDashboard() {
           </Pressable>
         </View>
 
+        {/* Displays a loading indicator or error message before showing dashboard data. */}
         {loading ? (
           <View style={styles.feedbackCard}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -417,6 +440,7 @@ export default function AdminDashboard() {
           </View>
         ) : (
           <>
+            {/* Displays the current totals for the main platform records. */}
             <View style={styles.metricsHeader}>
               <Text style={styles.metricsTitle}>Platform at a glance</Text>
               <Text style={styles.metricsCaption}>Current record totals</Text>
@@ -467,7 +491,7 @@ export default function AdminDashboard() {
                 width >= 900 && styles.mainSectionsWide,
               ]}
             >
-              {/* PENDING NGO APPROVALS */}
+              {/* Displays the three most recent NGO applications awaiting review. */}
               <View style={[styles.section, styles.mainSectionColumn]}>
                 <SectionHeading
                   title="Pending NGO approvals"
@@ -530,7 +554,7 @@ export default function AdminDashboard() {
                 </View>
               </View>
 
-              {/* RECENT DONATIONS */}
+              {/* Displays the three most recent donations with their current statuses. */}
               <View style={[styles.section, styles.mainSectionColumn]}>
                 <SectionHeading
                   title="Recent donations"
@@ -614,7 +638,7 @@ export default function AdminDashboard() {
               </View>
             </View>
 
-            {/* QUICK ACTIONS */}
+            {/* Provides shortcuts to frequently used admin management pages. */}
             <View style={styles.section}>
               <SectionHeading
                 title="Quick actions"
@@ -700,7 +724,7 @@ export default function AdminDashboard() {
               </View>
             </View>
 
-            {/* DASHBOARD FOOTER */}
+            {/* Confirms that the dashboard data has finished loading. */}
             <View style={styles.footer}>
               <View style={styles.footerDot} />
               <Text style={styles.footerText}>
@@ -714,6 +738,7 @@ export default function AdminDashboard() {
   );
 }
 
+// Defines the layout, colours, spacing, and responsive styles for dashboard components.
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
