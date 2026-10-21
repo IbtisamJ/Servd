@@ -53,12 +53,15 @@ type Donation = {
   expiryDate?: string;
 };
 
+// Standardizes status values so comparisons and styling remain consistent.
 const normalizeStatus = (status?: string) =>
   (status ?? "unknown").toLowerCase();
 
+// Capitalizes the status for display in the interface.
 const getStatusLabel = (status: string) =>
   status.charAt(0).toUpperCase() + status.slice(1);
 
+// Returns the badge and indicator styles associated with each donation status.
 const getStatusStyle = (status: string) => {
   switch (status) {
     case "available":
@@ -99,6 +102,7 @@ export default function DonationDetailsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Fetches donations and finds the record matching the route parameter.
   const loadDonation = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -125,10 +129,12 @@ export default function DonationDetailsScreen() {
     }
   }, [id]);
 
+  // Reloads the donation whenever the route ID changes.
   useEffect(() => {
     loadDonation();
   }, [loadDonation]);
 
+  // Confirms cancellation before updating the donation status.
   const changeStatus = (status: "cancelled") => {
     if (!id || !donation || saving) return;
 
@@ -149,6 +155,7 @@ export default function DonationDetailsScreen() {
             try {
               await updateDonation(id, { status } as never);
 
+              // Updates the displayed donation after the database update succeeds.
               setDonation((current) =>
                 current ? { ...current, status } : current,
               );
@@ -173,6 +180,7 @@ export default function DonationDetailsScreen() {
     );
   };
 
+  // Displays a consistent label and value for each donation detail.
   function detail(
     label: string,
     value?: string | number,
@@ -201,7 +209,6 @@ export default function DonationDetailsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back navigation */}
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
@@ -220,7 +227,7 @@ export default function DonationDetailsScreen() {
           <Text style={styles.backText}>Back to donations</Text>
         </Pressable>
 
-        {/* Loading state */}
+        {/* Displays a loading indicator while donation data is retrieved. */}
         {loading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator
@@ -235,7 +242,7 @@ export default function DonationDetailsScreen() {
             </Text>
           </View>
         ) : error ? (
-          /* Error and missing-record state */
+          // Shows an error message and allows the user to retry loading.
           <View style={styles.stateCard}>
             <View style={styles.errorIcon}>
               <FontAwesome5
@@ -275,7 +282,7 @@ export default function DonationDetailsScreen() {
           </View>
         ) : donation ? (
           <>
-            {/* Donation profile */}
+            {/* Displays the donation name and its current status. */}
             <View style={styles.hero}>
               <View style={styles.heroIcon}>
                 <FontAwesome5
@@ -317,7 +324,7 @@ export default function DonationDetailsScreen() {
               </Text>
             </View>
 
-            {/* Donation information */}
+            {/* Shows the donated food and its availability details. */}
             <View style={styles.card}>
               <View style={styles.cardHeading}>
                 <View style={styles.cardIcon}>
@@ -345,7 +352,7 @@ export default function DonationDetailsScreen() {
               {detail("Expiry date", donation.expiryDate)}
             </View>
 
-            {/* Collection information */}
+            {/* Shows where the donation can be collected. */}
             <View style={styles.card}>
               <View style={styles.cardHeading}>
                 <View style={styles.cardIcon}>
@@ -373,7 +380,7 @@ export default function DonationDetailsScreen() {
               )}
             </View>
 
-            {/* Donor information */}
+            {/* Shows the donor's enterprise and donation identifiers. */}
             <View style={styles.card}>
               <View style={styles.cardHeading}>
                 <View style={styles.cardIcon}>
@@ -403,7 +410,7 @@ export default function DonationDetailsScreen() {
               )}
             </View>
 
-            {/* Donation actions */}
+            {/* Allows cancellation only while the donation is available. */}
             {canCancel ? (
               <View style={styles.actionsSection}>
                 <Text style={styles.sectionTitle}>

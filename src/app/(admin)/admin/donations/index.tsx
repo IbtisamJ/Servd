@@ -26,7 +26,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Colors, Fonts, Spacing, Radius, MaxContentWidth } from "@/constants/theme";
+import {
+  Colors,
+  Fonts,
+  Spacing,
+  Radius,
+  MaxContentWidth,
+} from "@/constants/theme";
 import { getDonations } from "@/services/donationService";
 
 const colors = Colors.light;
@@ -41,6 +47,7 @@ type Donation = {
   collectionLocation?: string;
 };
 
+// Normalizes status values for consistent filtering and comparison.
 const normalizeStatus = (status?: string) =>
   (status ?? "unknown").toLowerCase();
 
@@ -52,6 +59,7 @@ export default function DonationsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Retrieves donations and ensures every record has a usable ID.
   const loadDonations = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -88,6 +96,7 @@ export default function DonationsScreen() {
     "expired",
   ];
 
+  // Filters donations by the search query and selected status.
   const filtered = donations.filter((item) => {
     const query = search.trim().toLowerCase();
     const status = normalizeStatus(item.status);
@@ -104,7 +113,8 @@ export default function DonationsScreen() {
       .toLowerCase();
 
     return (
-      searchableText.includes(query) && (filter === "all" || status === filter)
+      searchableText.includes(query) &&
+      (filter === "all" || status === filter)
     );
   });
 
@@ -116,7 +126,7 @@ export default function DonationsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* PAGE HEADER */}
+        {/* Page heading and donation refresh action */}
         <View style={styles.heading}>
           <View style={styles.headingText}>
             <Text style={styles.eyebrow}>SERVD / MANAGEMENT</Text>
@@ -147,7 +157,7 @@ export default function DonationsScreen() {
           </Pressable>
         </View>
 
-        {/* DONATION SUMMARY */}
+        {/* Displays the total number of donations and matching records. */}
         <View style={styles.summary}>
           <View style={styles.summaryIcon}>
             <FontAwesome5
@@ -167,7 +177,7 @@ export default function DonationsScreen() {
           </Text>
         </View>
 
-        {/* SEARCH */}
+        {/* Search field with an option to clear the current query. */}
         <View style={styles.searchBox}>
           <FontAwesome5
             name="search"
@@ -203,7 +213,7 @@ export default function DonationsScreen() {
           ) : null}
         </View>
 
-        {/* STATUS FILTERS */}
+        {/* Status filters with counts for each category. */}
         <View style={styles.filterSection}>
           <Text style={styles.filterHeading}>Filter by status</Text>
           <View style={styles.filters}>
@@ -257,7 +267,7 @@ export default function DonationsScreen() {
           </View>
         </View>
 
-        {/* DONATION LIST */}
+        {/* Donation list with loading, error, empty, and results states. */}
         <View style={styles.listSection}>
           <View style={styles.listHeading}>
             <View style={styles.listHeadingCopy}>
@@ -279,6 +289,7 @@ export default function DonationsScreen() {
               </Text>
             </View>
           ) : error ? (
+            // Displays the loading error and provides a retry action.
             <View style={styles.feedbackCard}>
               <View style={styles.errorIcon}>
                 <FontAwesome5
@@ -308,6 +319,7 @@ export default function DonationsScreen() {
               </Pressable>
             </View>
           ) : filtered.length === 0 ? (
+            // Offers a way to reset the search and filters when no records match.
             <View style={styles.emptyCard}>
               <View style={styles.emptyIcon}>
                 <FontAwesome5
@@ -342,6 +354,7 @@ export default function DonationsScreen() {
               ) : null}
             </View>
           ) : (
+            // Renders matching donations and opens the selected record's details.
             filtered.map((item, index) => {
               const status = normalizeStatus(item.status);
               const statusLabel =
@@ -684,17 +697,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
-  },
-  flatList: {
-    flex: 1,
-    minHeight: 0,
-  },
-  list: {
-    flexGrow: 1,
-    paddingBottom: Spacing.four,
-  },
-  listGap: {
-    height: 10,
   },
 
   /* Donation cards */
