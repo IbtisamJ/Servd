@@ -57,14 +57,17 @@ type ReservationStatusStyle = {
   icon: IconName;
 };
 
+// Standardises status values so comparisons remain consistent.
 const normalizeStatus = (status?: string) =>
   (status ?? "unknown").toLowerCase();
 
+// Converts Firestore timestamps into readable dates.
 const formatDate = (timestamp?: { seconds?: number }) =>
   timestamp?.seconds
     ? new Date(timestamp.seconds * 1000).toLocaleString()
     : "Not available";
 
+// Returns the colours and icon associated with each reservation status.
 const getStatusStyle = (status: string): ReservationStatusStyle => {
   switch (status) {
     case "active":
@@ -103,6 +106,7 @@ export default function ReservationDetailsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Loads the selected reservation and handles missing IDs or failed requests.
   const loadReservation = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -115,6 +119,7 @@ export default function ReservationDetailsScreen() {
       }
 
       const reservations = (await getReservations()) as Reservation[];
+
       const found = reservations.find(
         (item) => item.id === id || item.reservationId === id,
       );
@@ -139,6 +144,7 @@ export default function ReservationDetailsScreen() {
     loadReservation();
   }, [loadReservation]);
 
+  // Confirms status changes before updating the reservation and its donation.
   const changeStatus = (nextStatus: "collected" | "cancelled") => {
     if (saving || !reservation) return;
 
@@ -193,6 +199,7 @@ export default function ReservationDetailsScreen() {
     );
   };
 
+  // Reusable layout for displaying a reservation field.
   function detail(label: string, value?: string) {
     return (
       <View style={styles.detail} key={label}>
@@ -204,6 +211,7 @@ export default function ReservationDetailsScreen() {
     );
   }
 
+  // Groups related reservation details into a card with a heading.
   function SectionCard({
     title,
     icon,
@@ -218,9 +226,9 @@ export default function ReservationDetailsScreen() {
         <View style={styles.sectionHeading}>
           <View style={styles.sectionIcon}>
             <FontAwesome5
-              name="filter"
+              name="sort"
               size={15}
-              color={colors.textSecondary}
+              color={colors.primary}
               iconStyle="solid"
             />
           </View>
@@ -263,6 +271,7 @@ export default function ReservationDetailsScreen() {
                 iconStyle="solid"
               />
             </View>
+
             <Text style={styles.stateTitle}>Unable to load reservation</Text>
             <Text style={styles.error}>
               {error || "Reservation not found."}
@@ -305,7 +314,6 @@ export default function ReservationDetailsScreen() {
           <Text style={styles.backText}>Back to reservations</Text>
         </Pressable>
 
-        {/* Reservation header */}
         <View style={styles.hero}>
           <View style={styles.heroTop}>
             <View style={styles.avatar}>
@@ -325,7 +333,7 @@ export default function ReservationDetailsScreen() {
               <FontAwesome5
                 name="filter"
                 size={12}
-                color={colors.textSecondary}
+                color={colors.primary}
                 iconStyle="solid"
               />
               <Text style={[styles.statusText, { color: statusStyle.color }]}>
@@ -438,6 +446,7 @@ export default function ReservationDetailsScreen() {
   );
 }
 
+// Shared styles keep the layout and appearance consistent across sections.
 const styles = StyleSheet.create({
   screen: {
     flex: 1,

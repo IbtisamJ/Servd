@@ -49,10 +49,7 @@ type Reservation = {
   ngoId?: string;
   enterpriseId?: string;
   status?: string;
-  createdTimestamp?:
-    | { seconds?: number; toDate?: () => Date }
-    | Date
-    | string;
+  createdTimestamp?: { seconds?: number; toDate?: () => Date } | Date | string;
 };
 
 const filters = ["All", "Active", "Collected", "Cancelled"] as const;
@@ -61,9 +58,11 @@ type ReservationFilter = (typeof filters)[number];
 
 type ReservationStatus = "active" | "collected" | "cancelled";
 
+// Normalises status values for consistent filtering and comparison.
 const normalizeStatus = (status?: string) =>
   (status ?? "unknown").toLowerCase();
 
+// Supports Firestore timestamps, JavaScript dates, and date strings.
 const formatDate = (timestamp?: Reservation["createdTimestamp"]) => {
   if (!timestamp) return "Date unavailable";
 
@@ -98,12 +97,12 @@ export default function ReservationsScreen() {
 
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<ReservationFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<ReservationFilter>("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
+  // Fetches reservations and resets loading and refresh states when finished.
   const loadReservations = useCallback(async () => {
     setError("");
 
@@ -128,11 +127,11 @@ export default function ReservationsScreen() {
     loadReservations();
   }, [loadReservations]);
 
+  // Calculates reservation counts for the overview cards.
   const activeCount = useMemo(
     () =>
-      reservations.filter(
-        (item) => normalizeStatus(item.status) === "active",
-      ).length,
+      reservations.filter((item) => normalizeStatus(item.status) === "active")
+        .length,
     [reservations],
   );
 
@@ -152,6 +151,7 @@ export default function ReservationsScreen() {
     [reservations],
   );
 
+  // Applies the search query and selected status filter to the list.
   const filteredReservations = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -169,8 +169,7 @@ export default function ReservationsScreen() {
       const status = normalizeStatus(item.status);
 
       const matchesStatus =
-        statusFilter === "All" ||
-        status === statusFilter.toLowerCase();
+        statusFilter === "All" || status === statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
@@ -193,6 +192,7 @@ export default function ReservationsScreen() {
     setStatusFilter("All");
   }, []);
 
+  // Returns the correct reservation count for each filter option.
   const getFilterCount = (filter: ReservationFilter) => {
     switch (filter) {
       case "All":
@@ -233,18 +233,15 @@ export default function ReservationsScreen() {
       }
       ListHeaderComponent={
         <View style={styles.pageContent}>
-          {/* Page heading */}
           <View style={styles.pageHeader}>
             <View style={styles.pageHeadingGroup}>
-              <Text style={styles.eyebrow}>
-                SERVD / MANAGEMENT
-              </Text>
+              <Text style={styles.eyebrow}>SERVD / MANAGEMENT</Text>
 
               <Text style={styles.heading}>Reservations</Text>
 
               <Text style={styles.description}>
-                Monitor food donation reservations, track collection
-                progress, and review reservation activity.
+                Monitor food donation reservations, track collection progress,
+                and review reservation activity.
               </Text>
             </View>
 
@@ -268,14 +265,11 @@ export default function ReservationsScreen() {
             </Pressable>
           </View>
 
-          {/* Overview statistics */}
           <View style={styles.summarySection}>
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionTitle}>Overview</Text>
 
-              <Text style={styles.mutedText}>
-                {reservations.length} total
-              </Text>
+              <Text style={styles.mutedText}>{reservations.length} total</Text>
             </View>
 
             <View style={styles.summaryRow}>
@@ -308,7 +302,6 @@ export default function ReservationsScreen() {
             </View>
           </View>
 
-          {/* Search */}
           <View style={styles.searchBox}>
             <FontAwesome5
               name="search"
@@ -347,11 +340,8 @@ export default function ReservationsScreen() {
             )}
           </View>
 
-          {/* Status filters */}
           <View style={styles.filterSection}>
-            <Text style={styles.filterHeading}>
-              Filter by status
-            </Text>
+            <Text style={styles.filterHeading}>Filter by status</Text>
 
             <View style={styles.filters}>
               {filters.map((filter) => {
@@ -401,12 +391,9 @@ export default function ReservationsScreen() {
             </View>
           </View>
 
-          {/* Results heading */}
           <View style={styles.resultsHeader}>
             <View style={styles.resultsHeading}>
-              <Text style={styles.sectionTitle}>
-                Reservation records
-              </Text>
+              <Text style={styles.sectionTitle}>Reservation records</Text>
 
               <Text style={styles.resultsDescription}>
                 Reservation details and collection status
@@ -419,8 +406,7 @@ export default function ReservationsScreen() {
             </Text>
           </View>
 
-          {/* Error state */}
-          {!!error && (
+          {error ? (
             <View style={styles.errorBox}>
               <View style={styles.errorIcon}>
                 <FontAwesome5
@@ -454,13 +440,12 @@ export default function ReservationsScreen() {
                 </Pressable>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
       }
       renderItem={({ item }) => {
         const status = normalizeStatus(item.status);
-        const statusLabel =
-          status.charAt(0).toUpperCase() + status.slice(1);
+        const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 
         return (
           <Pressable
@@ -475,7 +460,6 @@ export default function ReservationsScreen() {
             accessibilityLabel={`View reservation ${getReservationName(item)}, status ${status}`}
             accessibilityHint="Opens reservation details"
           >
-            {/* Card heading */}
             <View style={styles.cardHeader}>
               <View style={styles.cardHeadingGroup}>
                 <View style={styles.reservationIcon}>
@@ -503,19 +487,10 @@ export default function ReservationsScreen() {
 
             <View style={styles.cardDivider} />
 
-            {/* Related records */}
             <View style={styles.detailsGrid}>
-              <Detail
-                label="Donation ID"
-                value={item.donationId}
-                icon="box"
-              />
+              <Detail label="Donation ID" value={item.donationId} icon="box" />
 
-              <Detail
-                label="NGO ID"
-                value={item.ngoId}
-                icon="building"
-              />
+              <Detail label="NGO ID" value={item.ngoId} icon="building" />
 
               <Detail
                 label="Enterprise ID"
@@ -524,7 +499,6 @@ export default function ReservationsScreen() {
               />
             </View>
 
-            {/* Card footer */}
             <View style={styles.cardFooter}>
               <Text style={styles.openDetails}>View details</Text>
 
@@ -570,9 +544,7 @@ export default function ReservationsScreen() {
               style={styles.clearFiltersButton}
               accessibilityRole="button"
             >
-              <Text style={styles.clearFiltersText}>
-                Clear filters
-              </Text>
+              <Text style={styles.clearFiltersText}>Clear filters</Text>
             </Pressable>
           ) : error ? (
             <Pressable
@@ -580,9 +552,7 @@ export default function ReservationsScreen() {
               style={styles.clearFiltersButton}
               accessibilityRole="button"
             >
-              <Text style={styles.clearFiltersText}>
-                Try again
-              </Text>
+              <Text style={styles.clearFiltersText}>Try again</Text>
             </Pressable>
           ) : null}
         </View>
@@ -591,6 +561,7 @@ export default function ReservationsScreen() {
   );
 }
 
+// Displays a clickable overview card that filters reservations by status.
 function Summary({
   label,
   value,
@@ -619,18 +590,8 @@ function Summary({
       accessibilityLabel={`${label}: ${value}. Filter reservations by ${label.toLowerCase()}`}
     >
       <View style={styles.summaryTopRow}>
-        <View
-          style={[
-            styles.summaryIcon,
-            { backgroundColor: `${color}18` },
-          ]}
-        >
-          <FontAwesome5
-            name={icon}
-            size={13}
-            color={color}
-            iconStyle="solid"
-          />
+        <View style={[styles.summaryIcon, { backgroundColor: `${color}18` }]}>
+          <FontAwesome5 name={icon} size={13} color={color} iconStyle="solid" />
         </View>
 
         <Text style={[styles.summaryValue, { color }]}>{value}</Text>
@@ -641,6 +602,7 @@ function Summary({
   );
 }
 
+// Displays an associated record ID with its corresponding icon.
 function Detail({
   label,
   value,
@@ -672,13 +634,8 @@ function Detail({
   );
 }
 
-function StatusBadge({
-  status,
-  label,
-}: {
-  status: string;
-  label: string;
-}) {
+// Selects badge colours based on the reservation's current status.
+function StatusBadge({ status, label }: { status: string; label: string }) {
   const statusStyle =
     status === "active"
       ? styles.activeBadge
@@ -726,7 +683,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
 
-  // Loading state
   center: {
     flex: 1,
     alignItems: "center",
@@ -744,7 +700,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Page heading
+  // Page heading and refresh button.
   pageHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -798,7 +754,7 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
 
-  // Overview
+  // Overview statistics.
   summarySection: {
     gap: Spacing.two,
     padding: Spacing.three,
@@ -875,7 +831,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Search
+  // Search input.
   searchBox: {
     minHeight: 46,
     flexDirection: "row",
@@ -902,7 +858,7 @@ const styles = StyleSheet.create({
     padding: Spacing.one,
   },
 
-  // Status filters
+  // Status filter controls.
   filterSection: {
     gap: Spacing.two,
   },
@@ -973,7 +929,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  // Results heading
+  // Results heading.
   resultsHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -999,24 +955,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Reservation list
+  // Reservation cards.
   listSeparator: {
     height: Spacing.two,
   },
 
   reservationCard: {
-  padding: Spacing.three,
-  backgroundColor: colors.background, 
-  borderWidth: 1,
-  borderColor: colors.backgroundElement,
-  borderRadius: Radius.lg,
-  gap: Spacing.three,
-},
+    padding: Spacing.three,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    borderRadius: Radius.lg,
+    gap: Spacing.three,
+  },
 
- cardPressed: {
-  backgroundColor: colors.background,
-  borderColor: colors.secondary,
-},
+  cardPressed: {
+    backgroundColor: colors.background,
+    borderColor: colors.secondary,
+  },
 
   cardHeader: {
     flexDirection: "row",
@@ -1069,7 +1025,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundElement,
   },
 
-  // Related record details
+  // Related record details.
   detailsGrid: {
     gap: Spacing.three,
   },
@@ -1111,7 +1067,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // Status badges
+  // Reservation status badges.
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1167,7 +1123,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // Card footer
+  // Card footer.
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -1185,7 +1141,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  // Empty state
+  // Empty list and no-results states.
   empty: {
     alignItems: "center",
     justifyContent: "center",
@@ -1230,7 +1186,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // Error state
+  // Loading error and retry controls.
   errorBox: {
     flexDirection: "row",
     alignItems: "flex-start",
