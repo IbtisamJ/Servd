@@ -24,6 +24,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -38,6 +39,7 @@ import {
 } from "@/constants/theme";
 
 const colors = Colors.light;
+const BORDER_COLOR = "#E8EAED";
 
 type Enterprise = {
   id: string;
@@ -54,6 +56,10 @@ type Enterprise = {
 
 export default function EnterprisesScreen() {
   const router = useRouter();
+
+  // Adjusts spacing and card layout according to the screen width.
+  const { width } = useWindowDimensions();
+  const isCompact = width < 520;
 
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [search, setSearch] = useState("");
@@ -179,22 +185,25 @@ export default function EnterprisesScreen() {
               </View>
 
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Refresh dashboard"
                 onPress={loadEnterprises}
                 disabled={loading}
                 style={({ pressed }) => [
                   styles.refreshButton,
                   pressed && styles.pressed,
-                  loading && styles.disabled,
+                  loading && styles.disabledButton,
                 ]}
-                accessibilityRole="button"
-                accessibilityLabel="Refresh enterprise list"
               >
                 <FontAwesome5
                   name="sync-alt"
-                  size={15}
-                  color={colors.primary}
+                  size={13}
+                  color={colors.text}
                   iconStyle="solid"
                 />
+                {!isCompact ? (
+                  <Text style={styles.refreshButtonText}>Refresh data</Text>
+                ) : null}
               </Pressable>
             </View>
 
@@ -407,19 +416,27 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   refreshButton: {
-    width: 42,
-    height: 42,
+    minHeight: 40,
+    paddingHorizontal: 13,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    gap: 9,
     borderWidth: 1,
-    borderColor: colors.backgroundElement,
+    borderColor: BORDER_COLOR,
     borderRadius: Radius.md,
+    backgroundColor: "#FFFFFF",
+  },
+  refreshButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.72,
   },
-  disabled: {
+  disabledButton: {
     opacity: 0.5,
   },
 

@@ -12,23 +12,21 @@
  *   and enterprise ID.
  * - Filters reservations by active, collected, or cancelled status.
  * - Displays reservation overview statistics.
- * - Supports pull-to-refresh and manual refresh.
  * - Handles loading, error, and empty-list states.
  * - Navigates to the selected reservation's detail screen.
  */
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import { getReservations } from "@/services/reservationService";
@@ -41,6 +39,7 @@ import {
 } from "@/constants/theme";
 
 const colors = Colors.light;
+const BORDER_COLOR = "#E8EAED";
 
 type Reservation = {
   id: string;
@@ -56,11 +55,9 @@ const filters = ["All", "Active", "Collected", "Cancelled"] as const;
 
 type ReservationFilter = (typeof filters)[number];
 
-type ReservationStatus = "active" | "collected" | "cancelled";
-
 // Normalises status values for consistent filtering and comparison.
 const normalizeStatus = (status?: string) =>
-  (status ?? "unknown").toLowerCase();
+  (status ?? "unknown").toLowerCase().trim();
 
 // Supports Firestore timestamps, JavaScript dates, and date strings.
 const formatDate = (timestamp?: Reservation["createdTimestamp"]) => {
@@ -72,7 +69,9 @@ const formatDate = (timestamp?: Reservation["createdTimestamp"]) => {
     date = timestamp;
   } else if (typeof timestamp === "string") {
     date = new Date(timestamp);
-  } else if (typeof timestamp.toDate === "function") {
+  } else if (
+    typeof timestamp.toDate === "function"
+  ) {
     date = timestamp.toDate();
   } else if (typeof timestamp.seconds === "number") {
     date = new Date(timestamp.seconds * 1000);
@@ -95,6 +94,10 @@ const getReservationName = (reservation: Reservation) =>
 export default function ReservationsScreen() {
   const router = useRouter();
 
+  // Adjusts spacing and card layout according to the screen width.
+  const { width } = useWindowDimensions();
+  const isCompact = width < 520;
+
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ReservationFilter>("All");
@@ -108,7 +111,17 @@ export default function ReservationsScreen() {
 
     try {
       const data = await getReservations();
-      setReservations(data as Reservation[]);
+
+      if (!Array.isArray(data)) {
+        throw new Error("The reservations response has an invalid format.");
+      }
+
+      // Ignore records without an ID because FlatList and navigation need one.
+      const validReservations = (data as Reservation[]).filter(
+        (item) => item && typeof item.id === "string" && item.id.length > 0,
+      );
+
+      setReservations(validReservations);
     } catch (err) {
       console.error("Failed to load reservations:", err);
 
@@ -119,12 +132,11 @@ export default function ReservationsScreen() {
       );
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadReservations();
+    void loadReservations();
   }, [loadReservations]);
 
   // Calculates reservation counts for the overview cards.
@@ -175,16 +187,22 @@ export default function ReservationsScreen() {
     });
   }, [reservations, search, statusFilter]);
 
-  const handleRefresh = useCallback(() => {
+  // Refreshes reservations when the refresh button is pressed.
+  const handleRefresh = useCallback(async () => {
     if (refreshing) return;
 
     setRefreshing(true);
-    loadReservations();
+
+    try {
+      await loadReservations();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadReservations, refreshing]);
 
   const handleRetry = useCallback(() => {
     setLoading(true);
-    loadReservations();
+    void loadReservations();
   }, [loadReservations]);
 
   const clearFilters = useCallback(() => {
@@ -223,14 +241,6 @@ export default function ReservationsScreen() {
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
       ListHeaderComponent={
         <View style={styles.pageContent}>
           <View style={styles.pageHeader}>
@@ -246,22 +256,33 @@ export default function ReservationsScreen() {
             </View>
 
             <Pressable
-              onPress={handleRefresh}
+              accessibilityRole="button"
+              accessibilityLabel="Refresh dashboard"
+              accessibilityState={{ disabled: refreshing }}
+              onPress={() => void handleRefresh()}
+              disabled={refreshing}
               style={({ pressed }) => [
                 styles.refreshButton,
                 pressed && styles.pressed,
-                refreshing && styles.refreshButtonDisabled,
+                refreshing && styles.disabledButton,
               ]}
-              accessibilityRole="button"
-              accessibilityLabel="Refresh reservations"
-              disabled={refreshing}
             >
-              <FontAwesome5
-                name="sync-alt"
-                size={15}
-                color={colors.primary}
-                iconStyle="solid"
-              />
+              {refreshing ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <FontAwesome5
+                  name="sync-alt"
+                  size={13}
+                  color={colors.text}
+                  iconStyle="solid"
+                />
+              )}
+
+              {!isCompact ? (
+                <Text style={styles.refreshButtonText}>
+                  {refreshing ? "Refreshing..." : "Refresh data"}
+                </Text>
+              ) : null}
             </Pressable>
           </View>
 
@@ -450,7 +471,9 @@ export default function ReservationsScreen() {
         return (
           <Pressable
             onPress={() =>
-              router.push(`/admin/reservations/${item.id}` as never)
+              router.push(
+                `/admin/reservations/${encodeURIComponent(item.id)}` as Href,
+              )
             }
             style={({ pressed }) => [
               styles.reservationCard,
@@ -543,6 +566,7 @@ export default function ReservationsScreen() {
               onPress={clearFilters}
               style={styles.clearFiltersButton}
               accessibilityRole="button"
+              accessibilityLabel="Clear search and status filters"
             >
               <Text style={styles.clearFiltersText}>Clear filters</Text>
             </Pressable>
@@ -551,6 +575,7 @@ export default function ReservationsScreen() {
               onPress={handleRetry}
               style={styles.clearFiltersButton}
               accessibilityRole="button"
+              accessibilityLabel="Retry loading reservations"
             >
               <Text style={styles.clearFiltersText}>Try again</Text>
             </Pressable>
@@ -736,22 +761,31 @@ const styles = StyleSheet.create({
   },
 
   refreshButton: {
-    width: 42,
-    height: 42,
+    minHeight: 40,
+    paddingHorizontal: 13,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.background,
+    gap: 9,
     borderWidth: 1,
-    borderColor: colors.backgroundElement,
+    borderColor: BORDER_COLOR,
     borderRadius: Radius.md,
+    backgroundColor: "#FFFFFF",
   },
 
-  refreshButtonDisabled: {
-    opacity: 0.55,
+  refreshButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
   },
 
   pressed: {
-    opacity: 0.75,
+    opacity: 0.72,
+  },
+
+  disabledButton: {
+    opacity: 0.5,
   },
 
   // Overview statistics.

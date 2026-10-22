@@ -11,7 +11,6 @@
  * - Handles loading, error, and empty-list states where implemented.
  * - Navigates to the selected donation's detail screen.
  */
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { Href, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -23,6 +22,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -36,6 +36,7 @@ import {
 import { getDonations } from "@/services/donationService";
 
 const colors = Colors.light;
+const BORDER_COLOR = "#E8EAED";
 
 type Donation = {
   id?: string;
@@ -49,15 +50,28 @@ type Donation = {
 
 // Normalizes status values for consistent filtering and comparison.
 const normalizeStatus = (status?: string) =>
-  (status ?? "unknown").toLowerCase();
+  (status ?? "unknown").toLowerCase().trim();
 
 export default function DonationsScreen() {
+  // Expo Router hooks must be called directly in the component body.
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 520;
+
   const [donations, setDonations] = useState<Donation[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const statuses = [
+    "all",
+    "available",
+    "reserved",
+    "collected",
+    "cancelled",
+    "expired",
+  ];
 
   // Retrieves donations and ensures every record has a usable ID.
   const loadDonations = useCallback(async () => {
@@ -84,21 +98,13 @@ export default function DonationsScreen() {
   }, []);
 
   useEffect(() => {
-    loadDonations();
+    void loadDonations();
   }, [loadDonations]);
 
-  const statuses = [
-    "all",
-    "available",
-    "reserved",
-    "collected",
-    "cancelled",
-    "expired",
-  ];
+  // Filters donations by search query and selected status.
+  const query = search.trim().toLowerCase();
 
-  // Filters donations by the search query and selected status.
   const filtered = donations.filter((item) => {
-    const query = search.trim().toLowerCase();
     const status = normalizeStatus(item.status);
 
     const searchableText = [
@@ -139,25 +145,27 @@ export default function DonationsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Refresh donations"
-            onPress={loadDonations}
+            onPress={() => void loadDonations()}
             disabled={loading}
             style={({ pressed }) => [
-              styles.refresh,
+              styles.refreshButton,
               pressed && styles.pressed,
-              loading && styles.disabled,
+              loading && styles.disabledButton,
             ]}
           >
             <FontAwesome5
               name="sync-alt"
-              size={14}
-              color={colors.primary}
+              size={13}
+              color={colors.text}
               iconStyle="solid"
             />
-            <Text style={styles.refreshText}>Refresh</Text>
+            {!isCompact && (
+              <Text style={styles.refreshButtonText}>Refresh data</Text>
+            )}
           </Pressable>
         </View>
 
-        {/* Displays the total number of donations and matching records. */}
+        {/* Donation summary */}
         <View style={styles.summary}>
           <View style={styles.summaryIcon}>
             <FontAwesome5
@@ -167,17 +175,19 @@ export default function DonationsScreen() {
               iconStyle="solid"
             />
           </View>
+
           <View style={styles.summaryCopy}>
             <Text style={styles.summaryLabel}>All donations</Text>
             <Text style={styles.summaryValue}>{donations.length}</Text>
           </View>
+
           <Text style={styles.summaryCaption}>
             {filtered.length} matching{" "}
             {filtered.length === 1 ? "record" : "records"}
           </Text>
         </View>
 
-        {/* Search field with an option to clear the current query. */}
+        {/* Search field */}
         <View style={styles.searchBox}>
           <FontAwesome5
             name="search"
@@ -185,6 +195,7 @@ export default function DonationsScreen() {
             color={colors.textSecondary}
             iconStyle="solid"
           />
+
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -195,7 +206,8 @@ export default function DonationsScreen() {
             returnKeyType="search"
             accessibilityLabel="Search donations"
           />
-          {search.length > 0 ? (
+
+          {search.length > 0 && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Clear search"
@@ -210,15 +222,26 @@ export default function DonationsScreen() {
                 iconStyle="solid"
               />
             </Pressable>
-          ) : null}
+          )}
         </View>
 
-        {/* Status filters with counts for each category. */}
+        {/* Status filters */}
         <View style={styles.filterSection}>
-          <Text style={styles.filterHeading}>Filter by status</Text>
-          <View style={styles.filters}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterHeading}>FILTER BY STATUS</Text>
+            <Text style={styles.filterResultCount}>
+              {filtered.length} donations
+            </Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filters}
+          >
             {statuses.map((status) => {
               const selected = filter === status;
+
               const count =
                 status === "all"
                   ? donations.length
@@ -246,28 +269,22 @@ export default function DonationsScreen() {
                   >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </Text>
-                  <View
+
+                  <Text
                     style={[
-                      styles.filterCount,
-                      selected && styles.filterCountActive,
+                      styles.filterCountText,
+                      selected && styles.filterCountTextActive,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.filterCountText,
-                        selected && styles.filterCountTextActive,
-                      ]}
-                    >
-                      {count}
-                    </Text>
-                  </View>
+                    {count}
+                  </Text>
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
-        {/* Donation list with loading, error, empty, and results states. */}
+        {/* Donation list */}
         <View style={styles.listSection}>
           <View style={styles.listHeading}>
             <View style={styles.listHeadingCopy}>
@@ -275,7 +292,9 @@ export default function DonationsScreen() {
               <Text style={styles.listSubtitle}>
                 {loading
                   ? "Retrieving the latest records..."
-                  : `${filtered.length} ${filtered.length === 1 ? "donation" : "donations"} found`}
+                  : `${filtered.length} ${
+                      filtered.length === 1 ? "donation" : "donations"
+                    } found`}
               </Text>
             </View>
           </View>
@@ -289,7 +308,6 @@ export default function DonationsScreen() {
               </Text>
             </View>
           ) : error ? (
-            // Displays the loading error and provides a retry action.
             <View style={styles.feedbackCard}>
               <View style={styles.errorIcon}>
                 <FontAwesome5
@@ -299,11 +317,15 @@ export default function DonationsScreen() {
                   iconStyle="solid"
                 />
               </View>
-              <Text style={styles.feedbackTitle}>Unable to load donations</Text>
+
+              <Text style={styles.feedbackTitle}>
+                Unable to load donations
+              </Text>
               <Text style={styles.feedbackDescription}>{error}</Text>
+
               <Pressable
                 accessibilityRole="button"
-                onPress={loadDonations}
+                onPress={() => void loadDonations()}
                 style={({ pressed }) => [
                   styles.retryButton,
                   pressed && styles.pressed,
@@ -319,7 +341,6 @@ export default function DonationsScreen() {
               </Pressable>
             </View>
           ) : filtered.length === 0 ? (
-            // Offers a way to reset the search and filters when no records match.
             <View style={styles.emptyCard}>
               <View style={styles.emptyIcon}>
                 <FontAwesome5
@@ -329,13 +350,15 @@ export default function DonationsScreen() {
                   iconStyle="solid"
                 />
               </View>
+
               <Text style={styles.emptyTitle}>No donations found</Text>
               <Text style={styles.empty}>
                 {search || filter !== "all"
                   ? "Try changing your search or selecting a different status filter."
                   : "Donation records will appear here when they become available."}
               </Text>
-              {search || filter !== "all" ? (
+
+              {(search || filter !== "all") && (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
@@ -351,10 +374,9 @@ export default function DonationsScreen() {
                     Clear search and filters
                   </Text>
                 </Pressable>
-              ) : null}
+              )}
             </View>
           ) : (
-            // Renders matching donations and opens the selected record's details.
             filtered.map((item, index) => {
               const status = normalizeStatus(item.status);
               const statusLabel =
@@ -375,16 +397,23 @@ export default function DonationsScreen() {
                 <Pressable
                   key={item.id ?? String(index)}
                   accessibilityRole="button"
-                  accessibilityLabel={`View donation ${item.foodName || "Unnamed donation"}`}
+                  accessibilityLabel={`View donation ${
+                    item.foodName || "Unnamed donation"
+                  }`}
+                  accessibilityState={{ disabled: !item.id }}
+                  disabled={!item.id}
                   onPress={() => {
                     if (item.id) {
-                      router.push(`/admin/donations/${item.id}` as Href);
+                      router.push(
+                        `/admin/donations/${encodeURIComponent(item.id)}` as Href,
+                      );
                     }
                   }}
                   style={({ pressed }) => [
                     styles.card,
                     styles.cardScrollItem,
                     pressed && styles.cardPressed,
+                    !item.id && styles.disabledButton,
                   ]}
                 >
                   <View style={styles.foodIcon}>
@@ -413,7 +442,7 @@ export default function DonationsScreen() {
                       </Text>
                     </View>
 
-                    {item.quantity != null ? (
+                    {item.quantity != null && (
                       <View style={styles.metaLine}>
                         <FontAwesome5
                           name="layer-group"
@@ -425,9 +454,9 @@ export default function DonationsScreen() {
                           Quantity: {item.quantity}
                         </Text>
                       </View>
-                    ) : null}
+                    )}
 
-                    {item.collectionLocation ? (
+                    {item.collectionLocation && (
                       <View style={styles.metaLine}>
                         <FontAwesome5
                           name="map-marker-alt"
@@ -439,13 +468,14 @@ export default function DonationsScreen() {
                           {item.collectionLocation}
                         </Text>
                       </View>
-                    ) : null}
+                    )}
                   </View>
 
                   <View style={styles.right}>
                     <View style={[styles.status, statusStyle]}>
                       <Text style={styles.statusText}>{statusLabel}</Text>
                     </View>
+
                     <FontAwesome5
                       name="chevron-right"
                       size={11}
@@ -517,28 +547,28 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: colors.textSecondary,
   },
-  refresh: {
+  refreshButton: {
     minHeight: 40,
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#FFFFFF",
+    gap: 9,
     borderWidth: 1,
-    borderColor: colors.backgroundElement,
+    borderColor: BORDER_COLOR,
     borderRadius: Radius.md,
+    backgroundColor: "#FFFFFF",
   },
-  refreshText: {
+  refreshButtonText: {
     fontFamily: Fonts.body,
     fontSize: 12,
     fontWeight: "700",
     color: colors.text,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.72,
   },
-  disabled: {
+  disabledButton: {
     opacity: 0.5,
   },
 
@@ -612,61 +642,64 @@ const styles = StyleSheet.create({
 
   /* Status filters */
   filterSection: {
-    gap: 8,
+    gap: 0,
+  },
+  filterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.two,
   },
   filterHeading: {
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    color: colors.text,
+    letterSpacing: 1,
+    color: colors.textSecondary,
+  },
+  filterResultCount: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   filters: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   filter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    gap: Spacing.two,
+    minHeight: 38,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.backgroundElement,
-    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
   },
   filterActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   filterPressed: {
-    opacity: 0.75,
+    opacity: 0.78,
   },
   filterText: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: "600",
     color: colors.textSecondary,
   },
   filterTextActive: {
-    fontWeight: "700",
     color: "#FFFFFF",
-  },
-  filterCount: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.backgroundElement,
-  },
-  filterCountActive: {
-    backgroundColor: "rgba(255,255,255,0.22)",
   },
   filterCountText: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
     color: colors.textSecondary,
   },

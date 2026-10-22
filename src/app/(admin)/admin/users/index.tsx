@@ -2,10 +2,8 @@
  * Admin Users List Screen
  *
  * Displays registered users for administrator review.
- * Supports searching, role filtering, pull-to-refresh,
- * and navigation to individual user details.
+ * Supports searching, role filtering, and navigation to individual user details.
  */
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
@@ -13,12 +11,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -33,6 +31,8 @@ import {
 import { COLLECTIONS, ROLES } from "@/constants/roles";
 
 const colors = Colors.light;
+const BORDER_COLOR = "#E8EAED";
+const SELECTED_BORDER_COLOR = "#E53935";
 
 type AdminUser = {
   id: string;
@@ -54,6 +54,10 @@ const FILTERS: { label: string; value: RoleFilter }[] = [
 
 export default function AdminUsersScreen() {
   const router = useRouter();
+
+  // Adjusts spacing and card layout according to the screen width.
+  const { width } = useWindowDimensions();
+  const isCompact = width < 520;
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +94,6 @@ export default function AdminUsersScreen() {
       setError("Unable to load users. Please try again.");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -98,16 +101,25 @@ export default function AdminUsersScreen() {
     void fetchUsers();
   }, [fetchUsers]);
 
-  const onRefresh = useCallback(() => {
+  // Refreshes users when the refresh button is pressed.
+  const onRefresh = useCallback(async () => {
+    if (refreshing) return;
+
     setRefreshing(true);
-    void fetchUsers();
-  }, [fetchUsers]);
+
+    try {
+      await fetchUsers();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchUsers, refreshing]);
 
   // Calculate totals for the overview cards and role filters.
   const roleCounts = useMemo(
     () => ({
       all: users.length,
-      enterprise: users.filter((user) => user.role === ROLES.ENTERPRISE).length,
+      enterprise: users.filter((user) => user.role === ROLES.ENTERPRISE)
+        .length,
       ngo: users.filter((user) => user.role === ROLES.NGO).length,
       admin: users.filter((user) => user.role === ROLES.ADMIN).length,
     }),
@@ -119,7 +131,11 @@ export default function AdminUsersScreen() {
     const query = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesRole =
+        roleFilter === "all" ||
+        (roleFilter === "enterprise" && user.role === ROLES.ENTERPRISE) ||
+        (roleFilter === "ngo" && user.role === ROLES.NGO) ||
+        (roleFilter === "admin" && user.role === ROLES.ADMIN);
 
       const matchesSearch =
         !query ||
@@ -221,23 +237,48 @@ export default function AdminUsersScreen() {
       <ScrollView
         style={styles.page}
         contentContainerStyle={styles.pageContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
           <View style={styles.pageHeader}>
-            <Text style={styles.eyebrow}>SERVD / MANAGEMENT</Text>
-            <Text style={styles.heading}>Users</Text>
-            <Text style={styles.subtitle}>
-              Manage registered enterprises, NGOs, and administrators.
-            </Text>
+            <View style={styles.pageHeadingGroup}>
+              <Text style={styles.eyebrow}>SERVD / MANAGEMENT</Text>
+              <Text style={styles.heading}>Users</Text>
+              <Text style={styles.subtitle}>
+                Manage registered enterprises, NGOs, and administrators.
+              </Text>
+            </View>
+
+            {/* Refresh button - same style as the Reservations screen */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Refresh dashboard"
+              accessibilityState={{ disabled: refreshing }}
+              onPress={() => void onRefresh()}
+              disabled={refreshing}
+              style={({ pressed }) => [
+                styles.refreshButton,
+                pressed && styles.pressed,
+                refreshing && styles.disabledButton,
+              ]}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <FontAwesome5
+                  name="sync-alt"
+                  size={13}
+                  color={colors.text}
+                  iconStyle="solid"
+                />
+              )}
+
+              {!isCompact ? (
+                <Text style={styles.refreshButtonText}>
+                  {refreshing ? "Refreshing..." : "Refresh data"}
+                </Text>
+              ) : null}
+            </Pressable>
           </View>
 
           {/* User totals grouped by role */}
@@ -250,7 +291,17 @@ export default function AdminUsersScreen() {
             </View>
 
             <View style={styles.overviewGrid}>
-              <View style={styles.overviewCard}>
+              <Pressable
+                onPress={() => setRoleFilter("all")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: roleFilter === "all" }}
+                accessibilityLabel={`Total users: ${roleCounts.all}. Show all users`}
+                style={({ pressed }) => [
+                  styles.overviewCard,
+                  roleFilter === "all" && styles.overviewCardActive,
+                  pressed && styles.overviewCardPressed,
+                ]}
+              >
                 <View style={styles.overviewCardTop}>
                   <View
                     style={[
@@ -272,9 +323,21 @@ export default function AdminUsersScreen() {
                   </Text>
                 </View>
                 <Text style={styles.overviewLabel}>Total users</Text>
-              </View>
+              </Pressable>
 
-              <View style={styles.overviewCard}>
+              <Pressable
+                onPress={() => setRoleFilter("enterprise")}
+                accessibilityRole="button"
+                accessibilityState={{
+                  selected: roleFilter === "enterprise",
+                }}
+                accessibilityLabel={`Enterprises: ${roleCounts.enterprise}. Filter users by enterprise`}
+                style={({ pressed }) => [
+                  styles.overviewCard,
+                  roleFilter === "enterprise" && styles.overviewCardActive,
+                  pressed && styles.overviewCardPressed,
+                ]}
+              >
                 <View style={styles.overviewCardTop}>
                   <View
                     style={[
@@ -296,9 +359,19 @@ export default function AdminUsersScreen() {
                   </Text>
                 </View>
                 <Text style={styles.overviewLabel}>Enterprises</Text>
-              </View>
+              </Pressable>
 
-              <View style={styles.overviewCard}>
+              <Pressable
+                onPress={() => setRoleFilter("ngo")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: roleFilter === "ngo" }}
+                accessibilityLabel={`NGOs: ${roleCounts.ngo}. Filter users by NGO`}
+                style={({ pressed }) => [
+                  styles.overviewCard,
+                  roleFilter === "ngo" && styles.overviewCardActive,
+                  pressed && styles.overviewCardPressed,
+                ]}
+              >
                 <View style={styles.overviewCardTop}>
                   <View
                     style={[
@@ -320,9 +393,19 @@ export default function AdminUsersScreen() {
                   </Text>
                 </View>
                 <Text style={styles.overviewLabel}>NGOs</Text>
-              </View>
+              </Pressable>
 
-              <View style={styles.overviewCard}>
+              <Pressable
+                onPress={() => setRoleFilter("admin")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: roleFilter === "admin" }}
+                accessibilityLabel={`Admins: ${roleCounts.admin}. Filter users by admin`}
+                style={({ pressed }) => [
+                  styles.overviewCard,
+                  roleFilter === "admin" && styles.overviewCardActive,
+                  pressed && styles.overviewCardPressed,
+                ]}
+              >
                 <View style={styles.overviewCardTop}>
                   <View
                     style={[
@@ -342,7 +425,7 @@ export default function AdminUsersScreen() {
                   </Text>
                 </View>
                 <Text style={styles.overviewLabel}>Admins</Text>
-              </View>
+              </Pressable>
             </View>
           </View>
 
@@ -450,6 +533,8 @@ export default function AdminUsersScreen() {
                     setLoading(true);
                     void fetchUsers();
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading users"
                 >
                   <Text style={styles.retryButtonText}>Try again</Text>
                 </Pressable>
@@ -501,7 +586,15 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   pageHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: Spacing.three,
     marginBottom: Spacing.four,
+  },
+  pageHeadingGroup: {
+    flex: 1,
+    gap: Spacing.one,
   },
   eyebrow: {
     fontFamily: Fonts.body,
@@ -523,6 +616,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: colors.textSecondary,
+  },
+
+  // Refresh button - matches the Reservations screen.
+  refreshButton: {
+    minHeight: 40,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    borderRadius: Radius.md,
+    backgroundColor: "#FFFFFF",
+  },
+  refreshButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 
   /* Overview cards */
@@ -565,6 +684,13 @@ const styles = StyleSheet.create({
     borderColor: colors.backgroundElement,
     borderRadius: Radius.md,
     gap: Spacing.two,
+  },
+  overviewCardActive: {
+    borderColor: SELECTED_BORDER_COLOR,
+    borderWidth: 2,
+  },
+  overviewCardPressed: {
+    opacity: 0.78,
   },
   overviewCardTop: {
     flexDirection: "row",

@@ -16,7 +16,6 @@
  * - Supports refreshing the NGO list.
  * - Navigates to the selected NGO's detail screen.
  */
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
@@ -29,6 +28,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import { db } from "@/config/firebase";
@@ -42,6 +42,7 @@ import {
 } from "@/constants/theme";
 
 const colors = Colors.light;
+const BORDER_COLOR = "#E8EAED";
 
 // Defines the NGO details used by the management screen.
 type NGO = {
@@ -60,6 +61,10 @@ type NGOFilter = (typeof filters)[number];
 
 export default function NGOsPage() {
   const router = useRouter();
+
+  // Adjusts spacing and card layout according to the screen width.
+  const { width } = useWindowDimensions();
+  const isCompact = width < 520;
 
   // Stores NGO records, search input, selected filter, and request state.
   const [ngos, setNgos] = useState<NGO[]>([]);
@@ -162,18 +167,25 @@ export default function NGOsPage() {
         </View>
 
         <Pressable
-          onPress={loadNGOs}
-          style={styles.refreshButton}
           accessibilityRole="button"
-          accessibilityLabel="Refresh NGO list"
+          accessibilityLabel="Refresh NGOS"
+          onPress={loadNGOs}
           disabled={loading}
+          style={({ pressed }) => [
+            styles.refreshButton,
+            pressed && styles.pressed,
+            loading && styles.disabledButton,
+          ]}
         >
           <FontAwesome5
             name="sync-alt"
-            size={15}
-            color={colors.primary}
+            size={13}
+            color={colors.text}
             iconStyle="solid"
           />
+          {!isCompact ? (
+            <Text style={styles.refreshButtonText}>Refresh data</Text>
+          ) : null}
         </Pressable>
       </View>
 
@@ -250,7 +262,10 @@ export default function NGOsPage() {
 
       {/* Status filters include a count for each category. */}
       <View style={styles.filterSection}>
-        <Text style={styles.filterHeading}>Filter by status</Text>
+        <View style={styles.filterHeader}>
+          <Text style={styles.filterHeading}>FILTER BY STATUS</Text>
+          <Text style={styles.filterCount}>{filteredNGOs.length} NGOs</Text>
+        </View>
 
         <ScrollView
           horizontal
@@ -287,24 +302,17 @@ export default function NGOsPage() {
                     selected && styles.filterTextActive,
                   ]}
                 >
-                  {item}
+                  {item === "All" ? "All NGOs" : item}
                 </Text>
 
-                <View
+                <Text
                   style={[
-                    styles.filterCount,
-                    selected && styles.filterCountActive,
+                    styles.filterPillCount,
+                    selected && styles.filterPillCountActive,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.filterCountText,
-                      selected && styles.filterCountTextActive,
-                    ]}
-                  >
-                    {count}
-                  </Text>
-                </View>
+                  {count}
+                </Text>
               </Pressable>
             );
           })}
@@ -533,14 +541,28 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   refreshButton: {
-    width: 42,
-    height: 42,
+    minHeight: 40,
+    paddingHorizontal: 13,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.background,
+    gap: 9,
     borderWidth: 1,
-    borderColor: colors.backgroundElement,
+    borderColor: BORDER_COLOR,
     borderRadius: Radius.md,
+    backgroundColor: "#FFFFFF",
+  },
+  refreshButtonText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 
   // Overview
@@ -636,65 +658,68 @@ const styles = StyleSheet.create({
 
   // Status filters
   filterSection: {
-    gap: 8,
+    gap: 0,
+  },
+  filterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.two,
   },
   filterHeading: {
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    color: colors.text,
+    letterSpacing: 1,
+    color: colors.textSecondary,
+  },
+  filterCount: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   filters: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   filter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    gap: Spacing.two,
+    minHeight: 38,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.backgroundElement,
-    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
   },
   filterActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   filterPressed: {
-    opacity: 0.75,
+    opacity: 0.78,
   },
   filterText: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: "600",
     color: colors.textSecondary,
   },
   filterTextActive: {
-    fontWeight: "700",
     color: "#FFFFFF",
   },
-  filterCount: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.backgroundElement,
-  },
-  filterCountActive: {
-    backgroundColor: "rgba(255,255,255,0.22)",
-  },
-  filterCountText: {
+  filterPillCount: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
     color: colors.textSecondary,
   },
-  filterCountTextActive: {
+  filterPillCountActive: {
     color: "#FFFFFF",
   },
 
