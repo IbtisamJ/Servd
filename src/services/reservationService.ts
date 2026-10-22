@@ -1,7 +1,7 @@
 /**
  * Reservation Service
  *
- * Handles Firestore operations related to NGO reservations.
+ * Handles Firestore operations related to NGO reservations
  *
  * Responsibilities:
  * - Reserve an available donation
@@ -37,16 +37,16 @@ import { RESERVATION_STATUS } from "../constants/roles";
 import { DONATION_STATUS } from "../constants/roles";
 
 /**
- * Reserves an available donation for an NGO.
+ * Reserves an available donation for an NGO
  *
  * ngoId should contain the Firebase Authentication
- * UID of the currently authenticated NGO.
+ * UID of the currently authenticated NGO
  *
  * The donation status is checked inside a
- * Firestore transaction before it is changed.
+ * Firestore transaction before it is changed
  *
  * This helps prevent two NGOs from successfully
- * reserving the same donation.
+ * reserving the same donation
  */
 export const reserveDonationForNGO =
   async (
@@ -58,7 +58,7 @@ export const reserveDonationForNGO =
   ) => {
     /**
      * Reference the selected Firestore
-     * Donation document.
+     * Donation document
      */
     const donationRef =
       doc(
@@ -68,11 +68,11 @@ export const reserveDonationForNGO =
       );
 
     /**
-     * Update the Donation atomically.
+     * Update the Donation automatically
      *
      * Firestore will re-check the document
-     * if another client changes it during
-     * the transaction.
+     * if another user changes it during
+     * the transaction
      */
     await runTransaction(
       db,
@@ -83,7 +83,7 @@ export const reserveDonationForNGO =
           );
 
         /**
-         * Ensure the Donation still exists.
+         * Ensure the Donation still exists
          */
         if (
           !donationSnapshot.exists()
@@ -258,7 +258,7 @@ export const getReservationsForNGO =
       (reservationDocument) => ({
         /**
          * Actual Firestore Reservation
-         * document identifier.
+         * document identifier
          */
         id:
           reservationDocument.id,

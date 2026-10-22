@@ -31,7 +31,7 @@ import { RESERVATION_STATUS } from "../constants/roles";
 import { Colors } from "../constants/theme";
 import { styles } from "../styles/Reservation.styles";
 
-// Information displayed for each donation reserved by an NGO.
+// Information displayed for each donation reserved by an NGO
 type Reservation = {
   id: string;
   donationDocumentId?: string;
@@ -46,7 +46,7 @@ export default function MyReservations() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // Loads reservations whenever this screen is opened or revisited.
+  // Loads reservations whenever this screen is opened/revisited
   const loadReservations = useCallback(async () => {
     try {
       setLoading(true);
@@ -67,8 +67,22 @@ export default function MyReservations() {
       const data = await getReservationsForNGO(
         currentUser.uid,
       );
+      
+      /**
+       * Removes cancelled reservations from
+       * the NGO reservations screen
+       * 
+       * The reservation remains stored in
+       * Firestore for history purposes, 
+       * but is no longer displated to the NGO
+       */
 
-      setReservations(data as Reservation[]);
+      const visibleReservations = data.filter(
+        (reservation: any) =>
+          reservation.status !== RESERVATION_STATUS.CANCELLED
+      );
+
+      setReservations(visibleReservations as Reservation[]);
     } catch (error) {
       console.error("Error loading reservations:", error);
 
@@ -81,14 +95,14 @@ export default function MyReservations() {
     }
   }, []);
 
-  // Refreshes reservation information when the screen regains focus.
+  // Refreshes reservation information when the screen regains focus
   useFocusEffect(
     useCallback(() => {
       loadReservations();
     }, [loadReservations]),
   );
 
-  // Marks an active reservation as collected after validating its IDs.
+  // Marks an active reservation as collected after validating its IDs
   const handleMarkCollected = async (item: Reservation) => {
     if (!item.id || !item.donationDocumentId) {
       Alert.alert(
@@ -122,7 +136,7 @@ export default function MyReservations() {
     }
   };
 
-  // Requests confirmation before cancelling a reservation.
+  // Requests confirmation before cancelling a reservation
   const handleCancelReservation = (item: Reservation) => {
     if (!item.id || !item.donationDocumentId) {
       Alert.alert(
@@ -175,7 +189,7 @@ export default function MyReservations() {
     );
   };
 
-  // Provides consistent colours and labels for each reservation status.
+  // Provides consistent colours and labels for each reservation status
   const getStatusStyle = (status: string) => {
     switch (status) {
       case RESERVATION_STATUS.COLLECTED:
@@ -204,7 +218,7 @@ export default function MyReservations() {
     }
   };
 
-  // Calculates the reservation totals shown in the compact overview.
+  // Calculates the reservation totals shown in the overview
   const activeCount = reservations.filter(
     (item) => item.status === RESERVATION_STATUS.ACTIVE,
   ).length;
@@ -213,7 +227,7 @@ export default function MyReservations() {
     (item) => item.status === RESERVATION_STATUS.COLLECTED,
   ).length;
 
-  // Displays an individual reservation and its available actions.
+  // Displays an individual reservation and its available actions
   const renderReservation = ({ item }: { item: Reservation }) => {
     const isUpdating = updatingId === item.id;
     const isActive = item.status === RESERVATION_STATUS.ACTIVE;
@@ -290,7 +304,7 @@ export default function MyReservations() {
           </View>
         </View>
 
-        {/* Only active reservations can be collected or cancelled. */}
+        {/* Only active reservations can be collected or cancelled */}
         {isActive && (
           <View style={styles.actions}>
             <TouchableOpacity
@@ -337,7 +351,7 @@ export default function MyReservations() {
           </View>
         )}
 
-        {/* Confirms successful collection without offering further actions. */}
+        {/* Confirms successful collection without offering further actions */}
         {item.status === RESERVATION_STATUS.COLLECTED && (
           <View style={styles.feedbackNote}>
             <FontAwesome5
@@ -362,7 +376,7 @@ export default function MyReservations() {
     );
   };
 
-  // Shows a simple loading screen while reservation data is retrieved.
+  // Shows a simple loading screen while reservation data is retrieved
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
