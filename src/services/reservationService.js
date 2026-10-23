@@ -20,9 +20,18 @@
 import {
   collection,
   doc,
+<<<<<<< HEAD
   getDocs,
   runTransaction,
   serverTimestamp,
+=======
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
+>>>>>>> main
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
@@ -38,6 +47,26 @@ const STATUS = {
   CANCELLED: "cancelled",
 };
 
+<<<<<<< HEAD
+=======
+/** Helper to find the correct donation document reference. */
+const resolveDonationRef = async (donationId) => {
+  const directRef = doc(db, DONATIONS, donationId);
+  const directSnap = await getDoc(directRef);
+  if (directSnap.exists()) {
+    return directRef;
+  }
+
+  const q = query(
+    collection(db, DONATIONS),
+    where("donationId", "==", donationId),
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.empty ? null : snapshot.docs[0].ref;
+};
+
+>>>>>>> main
 /** Get all reservations, including each Firestore document ID. */
 export const getReservations = async () => {
   const snapshot = await getDocs(collection(db, RESERVATIONS));
@@ -50,10 +79,22 @@ export const getReservations = async () => {
 
 /** Reserve an available donation transactionally. */
 export const createReservation = async (donationId, ngoId, enterpriseId) => {
+<<<<<<< HEAD
   const donationRef = doc(db, DONATIONS, donationId);
   const reservationRef = doc(db, RESERVATIONS, `res_${donationId}`);
 
   try {
+=======
+  try {
+    const donationRef = await resolveDonationRef(donationId);
+
+    if (!donationRef) {
+      return { success: false, error: "Donation not found." };
+    }
+
+    const reservationRef = doc(db, RESERVATIONS, `res_${donationId}`);
+
+>>>>>>> main
     await runTransaction(db, async (transaction) => {
       const donationDoc = await transaction.get(donationRef);
 
@@ -106,10 +147,22 @@ export const updateReservationStatus = async (
     };
   }
 
+<<<<<<< HEAD
   const reservationRef = doc(db, RESERVATIONS, reservationId);
   const donationRef = doc(db, DONATIONS, donationId);
 
   try {
+=======
+  try {
+    const donationRef = await resolveDonationRef(donationId);
+
+    if (!donationRef) {
+      return { success: false, error: "Donation not found." };
+    }
+
+    const reservationRef = doc(db, RESERVATIONS, reservationId);
+
+>>>>>>> main
     await runTransaction(db, async (transaction) => {
       const reservationDoc = await transaction.get(reservationRef);
       const donationDoc = await transaction.get(donationRef);
@@ -146,4 +199,8 @@ export const updateReservationStatus = async (
     console.error("Reservation update failed:", message);
     return { success: false, error: message };
   }
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> main

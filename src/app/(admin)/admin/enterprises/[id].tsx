@@ -15,7 +15,11 @@
 
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useLocalSearchParams, useRouter } from "expo-router";
+<<<<<<< HEAD
 import { doc, getDoc } from "firebase/firestore";
+=======
+import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+>>>>>>> main
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,9 +37,15 @@ import { ACCOUNT_STATUS, COLLECTIONS } from "@/constants/roles";
 import {
   Colors,
   Fonts,
+<<<<<<< HEAD
   Radius,
   Spacing,
   MaxContentWidth,
+=======
+  MaxContentWidth,
+  Radius,
+  Spacing,
+>>>>>>> main
 } from "@/constants/theme";
 
 const colors = Colors.light;
@@ -163,15 +173,27 @@ export default function EnterpriseDetailsScreen() {
     );
   }
 
+<<<<<<< HEAD
   // Placeholder until backend account suspension is implemented
   const handleSuspend = () => {
     Alert.alert(
       "Suspend enterprise?",
       "This will disable the enterprise account.",
+=======
+  // Toggles the enterprise account status between active and suspended in Firestore.
+  const handleSuspend = () => {
+    const nextStatus = isActive ? ACCOUNT_STATUS.SUSPENDED : ACCOUNT_STATUS.ACTIVE;
+    const actionLabel = isActive ? "suspend" : "activate";
+
+    Alert.alert(
+      `${isActive ? "Suspend" : "Activate"} enterprise?`,
+      `This will ${actionLabel} the enterprise account.`,
+>>>>>>> main
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Confirm",
+<<<<<<< HEAD
           style: "destructive",
           onPress: async () => {
             // TODO: Connect to backend suspension functionality.
@@ -179,28 +201,62 @@ export default function EnterpriseDetailsScreen() {
               "Backend integration pending",
               "Account suspension has not been implemented yet.",
             );
+=======
+          style: isActive ? "destructive" : "default",
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, COLLECTIONS.ENTERPRISES, id), {
+                accountStatus: nextStatus,
+              });
+
+              setEnterprise((prev) => (prev ? { ...prev, accountStatus: nextStatus } : null));
+              Alert.alert("Success", `Enterprise account has been ${isActive ? "suspended" : "activated"}.`);
+            } catch (err) {
+              console.error("Error updating enterprise status:", err);
+              Alert.alert("Error", "Failed to update enterprise status.");
+            }
+>>>>>>> main
           },
         },
       ],
     );
   };
 
+<<<<<<< HEAD
   // Placeholder until backend account deletion is implemented
   const handleDelete = () => {
     Alert.alert(
       "Delete enterprise?",
       "This will permanently delete the enterprise account.",
+=======
+  // Permanently deletes the enterprise document from Firestore and returns to the list.
+const handleDelete = () => {
+    Alert.alert(
+      "Delete enterprise?",
+      "This will permanently delete the enterprise account from the database.",
+>>>>>>> main
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Confirm deletion",
           style: "destructive",
           onPress: async () => {
+<<<<<<< HEAD
             // TODO: Connect to backend deletion functionality.
             Alert.alert(
               "Backend integration pending",
               "Account deletion has not been implemented yet.",
             );
+=======
+            try {
+              await deleteDoc(doc(db, COLLECTIONS.ENTERPRISES, id));
+              Alert.alert("Success", "Enterprise account has been deleted.");
+              router.back();
+            } catch (err) {
+              console.error("Error deleting enterprise:", err);
+              Alert.alert("Error", "Failed to delete enterprise account. Please check your permissions.");
+            }
+>>>>>>> main
           },
         },
       ],
