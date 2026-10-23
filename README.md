@@ -46,40 +46,20 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 
 ## Screenshots
 
-### Getting started
-| Splash | Login | Reset password |
-|:---:|:---:|:---:|
-<img width="400" height="829" alt="01-splash" src="https://github.com/user-attachments/assets/4b191dec-126d-4df6-a07a-d4fad2a7d572" />
-<img width="400" height="823" alt="02-login" src="https://github.com/user-attachments/assets/55f9c29d-fa37-4dd2-b28e-efd15499032f" />
-<img width="400" height="824" alt="03-reset-password" src="https://github.com/user-attachments/assets/e4d0b235-6db3-4878-8150-2a74800ddbfd" />
-
-
-
-
-### Registration
-| Create your account | Organisation details | Account created |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/04-register-account.png" width="220"> | <img src="docs/screenshots/05-register-organisation.png" width="220"> | <img src="docs/screenshots/06-account-created.png" width="220"> |
+### Getting started and registration
+| Splash | Login | Reset password | Create account | Organisation details | Account created |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/4b191dec-126d-4df6-a07a-d4fad2a7d572" width="125" alt="Splash"> | <img src="https://github.com/user-attachments/assets/55f9c29d-fa37-4dd2-b28e-efd15499032f" width="125" alt="Login"> | <img src="https://github.com/user-attachments/assets/e4d0b235-6db3-4878-8150-2a74800ddbfd" width="125" alt="Reset password"> | <img src="https://github.com/user-attachments/assets/5493742a-ec6e-4eae-be1f-27a7ae50513a" width="125" alt="Create account"> | <img src="https://github.com/user-attachments/assets/168e3e45-58f8-4f1d-8b47-b93dd6579240" width="125" alt="Organisation details"> | <img src="https://github.com/user-attachments/assets/ed7d14fb-2468-41f6-a981-6ce435238d0d" width="125" alt="Account created"> |
 
 ### NGO experience
-| Pending approval | NGO dashboard | Verification status |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/07-pending-approval.png" width="220"> | <img src="docs/screenshots/08-ngo-dashboard.png" width="220"> | <img src="docs/screenshots/09-ngo-verification.png" width="220"> |
-
-| Available donations | Donation details | |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/10-available-donations.png" width="220"> | <img src="docs/screenshots/11-donation-details.png" width="220"> | |
+| Pending approval | NGO dashboard | Verification status | Available donations | Donation details |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/848e6b7d-e36c-4a67-ab76-3e6db771c5dd" width="135" alt="Pending approval"> | <img src="https://github.com/user-attachments/assets/9e18ba9e-bb17-42b6-be5d-80ddf71669d0" width="135" alt="NGO dashboard"> | <img src="https://github.com/user-attachments/assets/372b80ee-e453-41ec-95f8-25adfc3555c4" width="135" alt="Verification status"> | <img src="https://github.com/user-attachments/assets/82a338da-35ef-4ccd-b6e7-3fd87465d53d" width="135" alt="Available donations"> | <img src="https://github.com/user-attachments/assets/f9b072bd-65b3-4651-a468-8e501d238bc5" width="135" alt="Donation details"> |
 
 ### Admin experience
-| Admin dashboard | NGO management | Donations management |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/12-admin-dashboard.png" width="220"> | <img src="docs/screenshots/13-admin-ngo-management.png" width="220"> | <img src="docs/screenshots/14-admin-donations.png" width="220"> |
-
-| More admin features | | |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/15-admin-more.png" width="220"> | | |
-
-
+| Admin dashboard | NGO management | Donations management | More admin features |
+|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/6d5be392-b026-4012-96e4-8d40ce666a45" width="150" alt="Admin dashboard"> | <img src="https://github.com/user-attachments/assets/83c3f116-8a5d-463c-86e0-e7b9a6b4f804" width="150" alt="NGO management"> | <img src="https://github.com/user-attachments/assets/abebf968-bfdb-428f-8469-19eef0858be8" width="150" alt="Donations management"> | <img src="https://github.com/user-attachments/assets/f4e8d92d-9d1b-41f1-be5b-962c4c3400b3" width="150" alt="More admin features"> |
 
 ---
 
@@ -134,6 +114,7 @@ The Firebase configuration is in `src/config/firebase.ts`, so no `.env` file is 
 
 ### Try it out
 Register a new Food Enterprise or NGO account from the app. Admin accounts cannot be created in the app. They are created manually in the Firebase console.
+
 ---
 
 ## Project Structure
