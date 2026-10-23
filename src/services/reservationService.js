@@ -104,6 +104,13 @@ export const createReservation = async (donationId, ngoId, enterpriseId) => {
         throw new Error("Donation no longer exists.");
       }
 
+      const donationData = donationDoc.data();
+
+      // Confirm the enterprise ID belongs to this donation
+      if (donationData.enterpriseId !== enterpriseId) {
+        throw new Error("The enterprise does not own this donation.");
+      }
+
       if (donationDoc.data().status !== STATUS.AVAILABLE) {
         throw new Error("This donation is no longer available.");
       }
