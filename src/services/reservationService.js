@@ -16,22 +16,34 @@
  * - Marks the donation as collected when the reservation is collected.
  * - Returns success or error information for supported operations.
  */
+/**
+ * Reservation Service
+ *
+ * Handles Firestore operations for creating and retrieving reservations
+ * and updating reservation statuses. Uses Firestore transactions to
+ * keep reservation and donation status changes consistent.
+ *
+ * Responsibilities:
+ * - Retrieves reservation documents and includes their document IDs.
+ * - Creates reservations for donations that are currently available.
+ * - Updates the donation to reserved when a reservation is created.
+ * - Prevents reservations for missing or unavailable donations.
+ * - Marks active reservations as collected or cancelled.
+ * - Updates the related donation in the same transaction.
+ * - Makes the donation available again when a reservation is cancelled.
+ * - Marks the donation as collected when the reservation is collected.
+ * - Returns success or error information for supported operations.
+ */
 
 import {
   collection,
   doc,
-<<<<<<< HEAD
-  getDocs,
-  runTransaction,
-  serverTimestamp,
-=======
   getDoc,
   getDocs,
   query,
   runTransaction,
   serverTimestamp,
   where,
->>>>>>> main
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
@@ -47,8 +59,6 @@ const STATUS = {
   CANCELLED: "cancelled",
 };
 
-<<<<<<< HEAD
-=======
 /** Helper to find the correct donation document reference. */
 const resolveDonationRef = async (donationId) => {
   const directRef = doc(db, DONATIONS, donationId);
@@ -66,7 +76,6 @@ const resolveDonationRef = async (donationId) => {
   return snapshot.empty ? null : snapshot.docs[0].ref;
 };
 
->>>>>>> main
 /** Get all reservations, including each Firestore document ID. */
 export const getReservations = async () => {
   const snapshot = await getDocs(collection(db, RESERVATIONS));
@@ -79,12 +88,6 @@ export const getReservations = async () => {
 
 /** Reserve an available donation transactionally. */
 export const createReservation = async (donationId, ngoId, enterpriseId) => {
-<<<<<<< HEAD
-  const donationRef = doc(db, DONATIONS, donationId);
-  const reservationRef = doc(db, RESERVATIONS, `res_${donationId}`);
-
-  try {
-=======
   try {
     const donationRef = await resolveDonationRef(donationId);
 
@@ -94,7 +97,6 @@ export const createReservation = async (donationId, ngoId, enterpriseId) => {
 
     const reservationRef = doc(db, RESERVATIONS, `res_${donationId}`);
 
->>>>>>> main
     await runTransaction(db, async (transaction) => {
       const donationDoc = await transaction.get(donationRef);
 
@@ -147,12 +149,6 @@ export const updateReservationStatus = async (
     };
   }
 
-<<<<<<< HEAD
-  const reservationRef = doc(db, RESERVATIONS, reservationId);
-  const donationRef = doc(db, DONATIONS, donationId);
-
-  try {
-=======
   try {
     const donationRef = await resolveDonationRef(donationId);
 
@@ -162,7 +158,6 @@ export const updateReservationStatus = async (
 
     const reservationRef = doc(db, RESERVATIONS, reservationId);
 
->>>>>>> main
     await runTransaction(db, async (transaction) => {
       const reservationDoc = await transaction.get(reservationRef);
       const donationDoc = await transaction.get(donationRef);
@@ -199,8 +194,4 @@ export const updateReservationStatus = async (
     console.error("Reservation update failed:", message);
     return { success: false, error: message };
   }
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> main
