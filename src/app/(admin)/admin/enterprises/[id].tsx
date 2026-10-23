@@ -440,18 +440,6 @@ const handleDelete = () => {
                 />
                 <Text style={styles.actionText}>Delete account</Text>
               </Pressable>
-
-              <View style={styles.actionNote}>
-                <FontAwesome5
-                  name="info-circle"
-                  size={13}
-                  color={colors.textSecondary}
-                  iconStyle="solid"
-                />
-                <Text style={styles.actionNoteText}>
-                  Account management actions require backend integration.
-                </Text>
-              </View>
             </View>
           </>
         ) : null}

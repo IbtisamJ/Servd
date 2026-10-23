@@ -33,9 +33,9 @@ import { COLLECTIONS } from "@/constants/roles";
 import {
   Colors,
   Fonts,
+  MaxContentWidth,
   Radius,
   Spacing,
-  MaxContentWidth,
 } from "@/constants/theme";
 
 const colors = Colors.light;

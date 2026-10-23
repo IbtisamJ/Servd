@@ -12,10 +12,6 @@
  * - Displays the NGO's verification status.
  * - Handles loading, missing-document, and error states.
  * - Provides navigation back to the NGO list.
- *
- * Note:
- * - Approval and rejection actions must be connected to the
- *   backend workflow before they persist changes to Firestore.
  */
 
 import { FontAwesome5 } from "@react-native-vector-icons/fontawesome5";
@@ -154,10 +150,9 @@ export default function NGOProfilePage() {
   const statusStyle = getStatusStyle();
   const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 
-  /**
-   * BACKEND PLACEHOLDER:
-   * Replace this handler with the backend approval/rejection service.
-   * No changes are currently written to Firestore by these actions.
+/**
+   * Updates the NGO's verification status in Firestore (approved or rejected),
+   * saving any rejection reason if applicable, and reloads the NGO details.
    */
 const confirmDecision = (decision: Decision) => {
     // Require a rejection reason before continuing with a rejection.
@@ -217,7 +212,7 @@ const confirmDecision = (decision: Decision) => {
     children,
   }: {
     title: string;
-    icon: IconName;
+    icon: any;
     children: React.ReactNode;
   }) {
     return (
@@ -225,7 +220,7 @@ const confirmDecision = (decision: Decision) => {
         <View style={styles.sectionHeading}>
           <View style={styles.sectionIcon}>
             <FontAwesome5
-              name="users"
+              name={icon}
               size={14}
               color={colors.textSecondary}
               iconStyle="solid"
@@ -237,7 +232,6 @@ const confirmDecision = (decision: Decision) => {
       </View>
     );
   }
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.container}>
