@@ -13,79 +13,44 @@
  * - Deletes donation documents when requested.
  */
 
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
+import { auth, db } from "@/config/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
-import { db } from "../config/firebase";
-import { DONATION_STATUS } from "../constants/roles";
-import type { Donation } from "../types/Donation";
+export interface CreateDonationInput {
+  title: string;
+  description?: string;
+  quantity: string | number;
+  expiryDate?: string;
+  pickupAddress?: string;
+  imageUrl?: string | null;
+}
 
-const DONATIONS_COLLECTION = "Donations";
+/**
+ * Creates a new donation document in Firestore with the uploaded image URL
+ * and attributes it to the currently logged-in enterprise.
+ */
+export async function createDonation(data: CreateDonationInput): Promise<string> {
+  const currentUser = auth.currentUser;
 
-/** Create a donation. */
-export const createDonation = async (donation: Donation) => {
-  return addDoc(collection(db, DONATIONS_COLLECTION), {
-    ...donation,
-    createdTimestamp: serverTimestamp(),
-    updatedTimestamp: serverTimestamp(),
+  if (!currentUser) {
+    throw new Error("You must be logged in to create a donation.");
+  }
+
+  // Reference the top-level 'donations' collection
+  const donationsRef = collection(db, "donations");
+
+  const docRef = await addDoc(donationsRef, {
+    enterpriseId: currentUser.uid,
+    title: data.title.trim(),
+    description: data.description?.trim() || "",
+    quantity: data.quantity,
+    expiryDate: data.expiryDate || null,
+    pickupAddress: data.pickupAddress || "",
+    imageUrl: data.imageUrl || null,
+    status: "available",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
-};
 
-/** Retrieve all donations. */
-export const getDonations = async () => {
-  const snapshot = await getDocs(collection(db, DONATIONS_COLLECTION));
-
-  return snapshot.docs.map((document) => ({
-    id: document.id,
-    ...document.data(),
-  }));
-};
-
-/** Update donation details. */
-export const updateDonation = async (
-  donationId: string,
-  data: Partial<Donation>,
-) => {
-  return updateDoc(doc(db, DONATIONS_COLLECTION, donationId), {
-    ...data,
-    updatedTimestamp: serverTimestamp(),
-  });
-};
-
-/** Shared helper for donation status changes. */
-const updateDonationStatus = async (
-  donationId: string,
-  status: Donation["status"],
-) => {
-  return updateDoc(doc(db, DONATIONS_COLLECTION, donationId), {
-    status,
-    updatedTimestamp: serverTimestamp(),
-  });
-};
-
-/** Mark a donation as reserved. */
-export const reserveDonation = async (donationId: string) =>
-  updateDonationStatus(donationId, DONATION_STATUS.RESERVED);
-
-/** Mark a donation as collected. */
-export const collectDonation = async (donationId: string) =>
-  updateDonationStatus(donationId, DONATION_STATUS.COLLECTED);
-
-/** Mark a donation as cancelled. */
-export const cancelDonation = async (donationId: string) =>
-  updateDonationStatus(donationId, DONATION_STATUS.CANCELLED);
-
-/** Mark a donation as expired. */
-export const expireDonation = async (donationId: string) =>
-  updateDonationStatus(donationId, DONATION_STATUS.EXPIRED);
-
-/** Permanently delete a donation. */
-export const deleteDonation = async (donationId: string) =>
-  deleteDoc(doc(db, DONATIONS_COLLECTION, donationId));
+  return docRef.id;
+}
