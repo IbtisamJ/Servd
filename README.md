@@ -1,56 +1,81 @@
-# Welcome to your Expo app 👋
+# Servd 🍽️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> A mobile-first food redistribution platform connecting commercial food enterprises with verified Non-Profit Organisations (NGOs) to eliminate food waste and support communities in need.
 
-## Get started
+---
 
-1. Install dependencies
+## 1. Project Summary
 
+**Servd** is a cross-platform mobile application built using React Native, Expo, and Firebase. The platform bridges the gap between food donors (supermarkets, restaurants, caterers) and community charities. 
+
+Food enterprises can rapidly list surplus edible food with photos, quantities, and collection deadlines. Verified NGOs can browse available donations in real-time and place reservations for immediate pickup. The platform features strict role-based access control (RBAC) and administrative oversight to ensure food safety, accountability, and traceability.
+
+---
+
+## 2. Key Features
+
+### 🔐 Authentication & Role-Based Access Control (RBAC)
+* **Multi-Role User Management:** Distinct flows and permissions for **Admins**, **NGOs**, and **Food Enterprises**.
+* **Atomic Onboarding & Rollback:** Safe batch creation across Firebase Authentication and Firestore documents, with automated cleanup if profile generation encounters network or permission faults.
+* **Persistent Sessions:** Native mobile session handling using `@react-native-async-storage/async-storage` to keep users logged in securely across app launches.
+
+### 🏢 Food Enterprise Portal
+* **Donation Creation:** Enter food titles, descriptions, quantities, expiry windows, and pickup addresses.
+* **Media Uploads:** Integrated photo capturing and selection powered by Cloudinary unsigned uploads, delivering optimized HTTPS image links without paid infrastructure locks.
+* **Listing Management:** Real-time visibility into active and completed food listings.
+
+### 🤝 NGO Discovery & Reservation Flow
+* **Live Donation Feed:** View available donations formatted with clear item details and photos.
+* **Vetted Reservations:** Strict Firestore security enforcement preventing unverified or pending NGOs from claiming food items until vetted by an administrator.
+
+### 🛡️ Administrative Dashboard & Security
+* **NGO Verification System:** Admin panel to review NPO registration details and approve or reject accounts.
+* **Zero-Trust Firestore Security Rules:** Server-side validation preventing privilege escalation, cross-role tampering, unauthenticated data reads, and donation spoofing.
+
+---
+
+## 3. Technology Stack
+
+* **Frontend:** React Native, Expo Router, TypeScript
+* **State & Persistence:** React Hooks, `@react-native-async-storage/async-storage`
+* **Backend & Database:** Firebase Authentication, Cloud Firestore
+* **Image Hosting:** Cloudinary (Unsigned Mobile API via `expo-image-picker`)
+* **Security:** Firebase Security Rules (RBAC, atomic validation)
+
+---
+
+## 4. Application Screenshots
+
+MUST STILL BE ADDED!
+
+---
+
+## 5. Links
+
+* **Source Code Repository:** [https://github.com/IbtisamJ/Servd](https://github.com/IbtisamJ/Servd)
+* **Demo Video:** MUST STILL BE ADDED*
+
+---
+
+## 6. Project Limitations & Future Enhancements
+
+* **Push Notifications:** The current version relies on live Firestore reactive snapshot listeners for feed updates. Native OS push notifications (e.g., via Expo Notifications) for reservation alerts are earmarked for subsequent releases.
+* **Turn-by-Turn GPS Navigation:** Collection points display formatted text pickup addresses. Future iterations will integrate interactive map SDKs (such as Google Maps or Mapbox) with live routing.
+* **Offline Mutations:** While data reads benefit from local device caching, donation creation and reservation claims require an active internet connection to ensure inventory consistency.
+
+
+---
+
+## 7. Getting Started
+
+### Prerequisites
+* Node.js (v18 or higher)
+* npm or yarn
+* Expo Go app installed on an Android or iOS device (or an emulator)
+
+### Installation & Run
+
+1. Clone the repository:
    ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+   git clone [https://github.com/IbtisamJ/Servd.git](https://github.com/IbtisamJ/Servd.git)
+   cd Servd
