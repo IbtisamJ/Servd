@@ -17,7 +17,6 @@
  */
 
 import {
-  addDoc,
   collection,
   doc,
   getDocs,
@@ -48,133 +47,73 @@ import { DONATION_STATUS } from "../constants/roles";
  * This helps prevent two NGOs from successfully
  * reserving the same donation
  */
-export const reserveDonationForNGO =
-  async (
-    donationDocumentId: string,
-    donationId: string,
-    ngoId: string,
-    foodName: string,
-    collectionLocation: string
-  ) => {
-    /**
-     * Reference the selected Firestore
-     * Donation document
-     */
-    const donationRef =
-      doc(
-        db,
-        "Donations",
-        donationDocumentId
-      );
 
-    /**
-     * Update the Donation automatically
-     *
-     * Firestore will re-check the document
-     * if another user changes it during
-     * the transaction
-     */
-    await runTransaction(
-      db,
-      async (transaction) => {
-        const donationSnapshot =
-          await transaction.get(
-            donationRef
-          );
+/**
+ * Reserves an available donation for an NGO.
+ *
+ * The Donation and Reservation are updated together
+ * in one Firestore transaction to prevent inconsistent
+ * records if reservation creation fails.
+ */
+export const reserveDonationForNGO = async (
+  donationDocumentId: string,
+  donationId: string,
+  ngoId: string,
+  foodName: string,
+  collectionLocation: string
+) => {
+  if (!donationDocumentId || !ngoId) {
+    throw new Error("Donation and NGO identifiers are required.");
+  }
 
-        /**
-         * Ensure the Donation still exists
-         */
-        if (
-          !donationSnapshot.exists()
-        ) {
-          throw new Error(
-            "The selected donation could not be found."
-          );
-        }
+  // Reference the actual Donation document.
+  const donationRef = doc(
+    db,
+    "Donations",
+    donationDocumentId
+  );
 
-        const donationData =
-          donationSnapshot.data();
+  // Generate a new Reservation document reference.
+  // It is not written until the transaction succeeds.
+  const reservationRef = doc(
+    collection(db, "Reservations")
+  );
 
-        /**
-         * Business rule:
-         *
-         * Only Donations currently marked
-         * Available may be reserved.
-         */
-        if (
-          donationData.status !==
-          DONATION_STATUS.AVAILABLE
-        ) {
-          throw new Error(
-            "This donation is no longer available."
-          );
-        }
+  await runTransaction(db, async (transaction) => {
+    const donationSnapshot = await transaction.get(donationRef);
 
-        /**
-         * Change the Donation lifecycle state:
-         *
-         * Available -> Reserved
-         */
-        transaction.update(
-          donationRef,
-          {
-            status:
-              DONATION_STATUS.RESERVED,
-          }
-        );
-      }
-    );
+    if (!donationSnapshot.exists()) {
+      throw new Error("The selected donation could not be found.");
+    }
 
-    /**
-     * Create the Reservation after the
-     * Donation has successfully been reserved.
-     *
-     * ngoId stores the authenticated
-     * Firebase user's UID.
-     */
-    const reservationRef =
-      await addDoc(
-        collection(
-          db,
-          "Reservations"
-        ),
-        {
-          donationId,
+    const donationData = donationSnapshot.data();
 
-          /**
-           * Actual Firestore Donation
-           * document identifier.
-           *
-           * Required when the linked
-           * Donation is updated later.
-           */
-          donationDocumentId,
+    // Only an available donation can be reserved.
+    if (donationData.status !== DONATION_STATUS.AVAILABLE) {
+      throw new Error("This donation is no longer available.");
+    }
 
-          /**
-           * Firebase Authentication UID
-           * belonging to the NGO that
-           * created this Reservation.
-           */
-          ngoId,
+    // Change the Donation status.
+    transaction.update(donationRef, {
+      status: DONATION_STATUS.RESERVED,
+    });
 
-          foodName,
+    // Create the Reservation in the same transaction.
+    transaction.set(reservationRef, {
+      donationId,
+      donationDocumentId,
+      ngoId,
+      foodName,
+      collectionLocation,
+      status: RESERVATION_STATUS.ACTIVE,
+      createdTimestamp: serverTimestamp(),
+      updatedTimestamp: serverTimestamp(),
+    });
+  });
 
-          collectionLocation,
+  return reservationRef;
+};
 
-          status:
-            RESERVATION_STATUS.ACTIVE,
-
-          createdTimestamp:
-            serverTimestamp(),
-
-          updatedTimestamp:
-            serverTimestamp(),
-        }
-      );
-
-    return reservationRef;
-  };
 
 /**
  * Retrieves all Reservation records.
