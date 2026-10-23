@@ -1,35 +1,33 @@
 {
   "expo": {
-    "name": "servd",
+    "name": "Servd",
     "slug": "servd",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Servd_Logo.png",
     "scheme": "servd",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/Servd_Logo.png"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/Servd_Logo.png",
+        "backgroundColor": "#F0E6D2"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "foregroundImage": "./assets/images/Servd_Logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
+          "backgroundColor": "#F0E6D2",
+          "image": "./assets/images/Servd_Logo.png",
           "imageWidth": 76
         }
       ]
@@ -40,3 +38,4 @@
     }
   }
 }
+
