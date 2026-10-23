@@ -1,121 +1,250 @@
 /**
- * Placeholder Login Screen
- *
- * Handles user authentication using Firebase Authentication.
- * Collects the user's login credentials, submits the sign-in
- * request, and navigates authenticated users to the admin area
- * when appropriate.
- *
- * Responsibilities:
- * - Collects and validates login information.
- * - Authenticates users through Firebase.
- * - Handles authentication errors and unsuccessful login attempts.
- * - Navigates users after successful authentication.
- *
- * Related Routes:
- * - /(admin)/admin
+ * Handles user authentication for Servd:
+ * - Email/password login via Firebase Auth
+ * - Role-based routing (NGO / Enterprise)
+ * - Account status and verification checks
+ * - Error handling and feedback messages
+ * - Loading animation during login
  */
 
-import { useState } from "react";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { useRouter } from "expo-router";
+import { doc, getDoc } from "firebase/firestore";
+import { useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  Animated,
+  Dimensions,
+  Image,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { Redirect, useRouter } from "expo-router";
+import { db } from "../config/firebase";
+import { COLLECTIONS, NGO_STATUS, ROLES } from "../constants/roles";
+import { Colors } from "../constants/theme";
+import {
+  getAuthErrorMessage,
+  loginUser,
+  logoutUser,
+} from "../services/authService";
 
-import { auth } from "@/config/firebase";
-import { Colors, Radius, Spacing } from "@/constants/theme";
-import { useAuth } from "@/hooks/useAuth";
-
-export default function LoginScreen() {
+export default function Login() {
   const router = useRouter();
-  const { user, profile, role, loading } = useAuth();
 
+  // Local state for form inputs and UI feedback
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [signingIn, setSigningIn] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  // If an admin is already signed in, go straight to the admin dashboard.
-  if (!loading && user && profile && role === "admin") {
-    return <Redirect href="/(admin)/admin" />;
-  }
+  // Loading animation values
+  const truckAnim = useRef(new Animated.Value(0)).current;
+  const wheelAnim = useRef(new Animated.Value(0)).current;
+  const screenWidth = Dimensions.get("window").width;
+
+  // Plays truck + wheel animation once before routing
+  const playTruckAnimation = () =>
+    new Promise<void>((resolve) => {
+      truckAnim.setValue(0);
+      wheelAnim.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(truckAnim, {
+          toValue: 1,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(wheelAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start(() => resolve());
+    });
 
   const handleLogin = async () => {
+    setError("");
+
     if (!email.trim() || !password) {
-      Alert.alert("Missing details", "Enter your email and password.");
+      setError("Please enter your email and password.");
       return;
     }
 
-    try {
-      setSigningIn(true);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+    setLoading(true);
 
-      // useAuth listens for the profile and the admin layout handles access.
-      // If your admin dashboard route differs, update the redirect above.
-      router.replace("/(admin)/admin");
-    } catch (error) {
-      console.error("Login failed:", error);
-      Alert.alert(
-        "Login failed",
-        "Check your email and password, and make sure this account exists in Firebase Authentication."
-      );
+    try {
+      const result = await loginUser(email, password);
+
+      if (result.role === ROLES.NGO) {
+        const ngoDoc = await getDoc(doc(db, COLLECTIONS.NGOS, result.uid));
+
+        if (!ngoDoc.exists()) {
+          await logoutUser();
+          setError(
+            "Your organisation details could not be found. Please contact support.",
+          );
+          return;
+        }
+
+        const verificationStatus = String(
+          ngoDoc.data().verificationStatus ?? "",
+        ).toLowerCase();
+
+        if (verificationStatus === NGO_STATUS.PENDING) {
+          await playTruckAnimation();
+          router.replace("/NGOWelcome");
+        } else if (verificationStatus === NGO_STATUS.APPROVED) {
+          await playTruckAnimation();
+          router.replace("/ngo-dashboard");
+        } else if (verificationStatus === NGO_STATUS.REJECTED) {
+          await logoutUser();
+          setError(
+            "Your NGO registration was not approved. Please contact support.",
+          );
+        } else {
+          await logoutUser();
+          setError(
+            "Your account is not approved for access. Please contact support.",
+          );
+        }
+      } else if (result.role === ROLES.ENTERPRISE) {
+        await playTruckAnimation();
+        router.replace("/EnterpriseDashboard");
+      } else if (result.role === ROLES.ADMIN) {
+        await logoutUser();
+        setError("Administrator login is not available in this build yet.");
+      } else {
+        await logoutUser();
+        setError(
+          "Your account role could not be identified. Please contact support.",
+        );
+      }
+    } catch (error: unknown) {
+      console.error("Login error:", error);
+      setError(getAuthErrorMessage(error));
     } finally {
-      setSigningIn(false);
+      setLoading(false);
     }
   };
 
+  // Animation transforms for truck movement + wheel rotation
+  const truckTranslateX = truckAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, Math.max(0, screenWidth - 100)],
+  });
+
+  const truckRotate = wheelAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>Servd</Text>
-      <Text style={styles.heading}>Welcome back</Text>
-      <Text style={styles.subtitle}>Temporary login for testing.</Text>
+      {!loading ? (
+        <>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../../assets/images/Servd_Logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor={Colors.light.textSecondary}
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+          <Text style={styles.title}>Welcome back to Servd</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor={Colors.light.textSecondary}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-      />
+          <TextInput
+            placeholder="Email"
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            placeholderTextColor={Colors.light.textSecondary}
+            accessibilityLabel="Email address"
+          />
 
-      <TouchableOpacity
-        style={[styles.button, signingIn && styles.disabledButton]}
-        onPress={handleLogin}
-        disabled={signingIn}
-      >
-        {signingIn ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </TouchableOpacity>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              placeholder="Password"
+              style={styles.passwordInput}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              placeholderTextColor={Colors.light.textSecondary}
+              accessibilityLabel="Password"
+            />
 
-      {loading && (
-        <Text style={styles.loadingText}>Checking your session...</Text>
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.passwordToggle}
+              accessibilityRole="button"
+              accessibilityLabel={
+                showPassword ? "Hide password" : "Show password"
+              }
+            >
+              <Text style={styles.passwordToggleText}>
+                {showPassword ? "Hide" : "Show"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {error ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleLogin}
+            disabled={loading}
+            accessibilityRole="button"
+          >
+            <Text style={styles.buttonText}>LOGIN</Text>
+          </TouchableOpacity>
+
+          <Text
+            style={styles.link}
+            onPress={() => router.push("/ResetPassword")}
+          >
+            Forgot Password?
+          </Text>
+
+          <Text style={styles.footer}>
+            Don’t have an account?{" "}
+            <Text
+              style={styles.link}
+              onPress={() => router.replace("/Register")}
+            >
+              Register
+            </Text>
+          </Text>
+        </>
+      ) : (
+        <View style={styles.loader}>
+          <Animated.View
+            style={{
+              transform: [
+                { translateX: truckTranslateX },
+                { rotate: truckRotate },
+              ],
+            }}
+          >
+            <FontAwesome5
+              name="truck"
+              size={32}
+              color={Colors.light.secondary}
+              iconStyle="solid"
+            />
+          </Animated.View>
+
+          <Text style={styles.loadingText}>Getting things ready...</Text>
+        </View>
       )}
-
-      <Text style={styles.note}>
-        Temporary screen — remove it after testing.
-      </Text>
     </View>
   );
 }
@@ -123,61 +252,92 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
     backgroundColor: Colors.light.background,
-    padding: Spacing.four,
-    gap: Spacing.three,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 24,
   },
   logo: {
-    color: Colors.light.primary,
-    fontSize: 36,
-    fontWeight: "800",
-    textAlign: "center",
+    width: 120,
+    height: 120,
   },
-  heading: {
+  title: {
+    fontSize: 22,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 32,
     color: Colors.light.text,
-    fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  subtitle: {
-    color: Colors.light.textSecondary,
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: Spacing.two,
   },
   input: {
-    backgroundColor: Colors.light.backgroundElement,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#ddd",
     color: Colors.light.text,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    fontSize: 16,
   },
-  button: {
-    backgroundColor: Colors.light.primary,
-    borderRadius: Radius.md,
+  passwordContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    padding: Spacing.three,
-    minHeight: 50,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    marginBottom: 16,
   },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    color: Colors.light.text,
+  },
+  passwordToggle: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  passwordToggleText: {
+    color: Colors.light.secondary,
+    fontSize: 12,
     fontWeight: "700",
   },
-  disabledButton: {
-    opacity: 0.6,
+  button: {
+    backgroundColor: Colors.light.secondary,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  link: {
+    color: Colors.light.secondary,
+    textAlign: "center",
+    marginTop: 8,
+  },
+  footer: {
+    textAlign: "center",
+    marginTop: 24,
+    color: Colors.light.textSecondary,
+  },
+  error: {
+    color: Colors.light.error,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
+    marginTop: 24,
+    fontSize: 14,
     color: Colors.light.textSecondary,
-    textAlign: "center",
-  },
-  note: {
-    color: Colors.light.textSecondary,
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: Spacing.two,
   },
 });
