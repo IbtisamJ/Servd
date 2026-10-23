@@ -1,12 +1,24 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, Slot } from "expo-router";
-import { useColorScheme } from "react-native";
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { Colors } from '@/constants/theme';
 
-export default function Layout() {
-  const colorScheme = useColorScheme();
-
+export default function EnterpriseGroupLayout() {
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Slot />
-    </ThemeProvider>
+    <>
+      <StatusBar style="dark" />
+
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: {
+            backgroundColor: Colors.light.background,
+          },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen name="enterprises" />
+        <Stack.Screen name="notifications" />
+      </Stack>
+    </>
   );
 }
