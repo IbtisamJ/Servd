@@ -25,8 +25,8 @@ import {
 } from "react-native";
 
 import { auth } from "@/config/firebase";
-import { Colors, Radius, Spacing } from "@/constants/theme";
 import { ROLES } from "@/constants/roles";
+import { Colors, Radius, Spacing } from "@/constants/theme";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminSettingsScreen() {
@@ -52,7 +52,7 @@ export default function AdminSettingsScreen() {
               await signOut(auth);
 
               // Redirects to login and prevents returning to settings using Back.
-              router.replace("/login" as never);
+              router.replace("/Login" as never);
             } catch (error) {
               // Displays an error message if signing out fails.
               console.error("Failed to sign out:", error);
@@ -95,7 +95,7 @@ export default function AdminSettingsScreen() {
         </Text>
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => router.replace("/login" as never)}
+          onPress={() => router.replace("/Login" as never)}
         >
           <Text style={styles.primaryButtonText}>Go to login</Text>
         </TouchableOpacity>

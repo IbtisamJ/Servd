@@ -21,8 +21,8 @@ import {
 
 import { auth } from "../../config/firebase";
 import { DONATION_STATUS } from "../../constants/roles";
-import { reserveDonationForNGO } from "../../services/reservationService";
 import { Colors } from "../../constants/theme";
+import { reserveDonationForNGO } from "../../services/reservationService";
 import { styles } from "../../styles/DonationDetails.style";
 
 export default function DonationDetails() {
@@ -106,7 +106,7 @@ export default function DonationDetails() {
         [
           {
             text: "View reservations",
-            onPress: () => router.replace("/my-reservations"),
+            onPress: () => router.replace("/ngos/my-reservations"),
           },
         ],
       );

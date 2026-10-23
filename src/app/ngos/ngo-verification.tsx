@@ -13,10 +13,10 @@ import {
   View,
 } from "react-native";
 
-import { router } from "expo-router";
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { router } from "expo-router";
 
-import { Colors, Fonts, Spacing, Radius } from "../../constants/theme";
+import { Colors, Fonts, Radius, Spacing } from "../../constants/theme";
 
 import { NGO_STATUS } from "../../constants/roles";
 

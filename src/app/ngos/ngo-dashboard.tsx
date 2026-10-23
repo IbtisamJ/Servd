@@ -132,7 +132,7 @@ export default function NGODashboard() {
         <TouchableOpacity
           style={styles.featureCard}
           activeOpacity={0.88}
-          onPress={() => router.push("/available-donations")}
+          onPress={() => router.push("/ngos/available-donations")}
           accessibilityRole="button"
           accessibilityLabel="Find available food donations"
         >
@@ -193,7 +193,7 @@ export default function NGODashboard() {
             <TouchableOpacity
               style={styles.activityTile}
               activeOpacity={0.75}
-              onPress={() => router.push("/my-reservations")}
+              onPress={() => router.push("/ngos/my-reservations")}
               accessibilityRole="button"
               accessibilityLabel="View my reservations"
             >
@@ -225,7 +225,7 @@ export default function NGODashboard() {
             <TouchableOpacity
               style={styles.activityTile}
               activeOpacity={0.75}
-              onPress={() => router.push("/ngo-verification")}
+              onPress={() => router.push("/ngos/ngo-verification")}
               accessibilityRole="button"
               accessibilityLabel="View organisation details"
             >
