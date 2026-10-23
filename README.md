@@ -169,11 +169,11 @@ firestore.rules   # Firestore security rules
 
 | Name | Role |
 |---|---|
-| Sarah Armien | [ADD ROLE] |
-| Ethan Swart | [ADD ROLE] |
-| Helmer Carlos Morgado | [ADD ROLE] |
-| Ibtisam Jaffer | [ADD ROLE] |
-| Thaakirah Enos | [ADD ROLE] |
+| Sarah Armien | NGO functionality, donation browsing, NGO dashboard |
+| Ethan Swart | administrative functionality, reservation management |
+| Helmer Carlos Morgado | CRUD operations, expired donation handling, reservation processing |
+| Ibtisam Jaffer | Github management, user management, navigation interfaces, shared UI components |
+| Thaakirah Enos | enterprise dashboard functionality, donation editing and creation |
 | Raabiah Adams | Authentication, user roles and Firestore security rules |
 
 ---
