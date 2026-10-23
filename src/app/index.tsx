@@ -1,3 +1,3 @@
-import SplashScreen from "./SplashScreen";
+import EnterpriseDashboard from "./(enterprises)/enterprises";
 
-export default SplashScreen;
+export default EnterpriseDashboard;
