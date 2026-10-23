@@ -1,65 +1,30 @@
 /**
- * Shared donation types for the Food Enterprise screens.
+ * Donation Type Definition
  *
- * Field names line up with what the NGO screens already display
- * (Food Name, Category, Description, Quantity, Collection Location,
- * Donation ID, Status) so both sides can read the same backend payload.
+ * Defines the TypeScript structure used to represent a food donation
+ * throughout the application.
+ *
+ * Responsibilities:
+ * - Specifies donation identification fields.
+ * - Defines enterprise ownership and food information.
+ * - Defines quantity and collection location information.
+ * - Defines collection deadline and expiry date fields.
+ * - Restricts donation status to the supported donation status values.
+ * - Defines the donation creation timestamp.
  */
 
-export const DONATION_CATEGORIES = [
-  'Bakery',
-  'Produce',
-  'Dairy',
-  'Prepared Meals',
-  'Pantry',
-  'Beverages',
-  'Other',
-] as const;
+import { DONATION_STATUS } from "../constants/roles";
 
-export type DonationCategory = (typeof DONATION_CATEGORIES)[number];
-
-/**
- * Lifecycle of a donation from the enterprise's point of view.
- * - Available: listed, NGOs can reserve it
- * - Reserved:  an NGO has an active reservation, awaiting collection
- * - Collected: the NGO marked it as collected
- * - Cancelled: the enterprise withdrew it
- */
-export type DonationStatus = 'Available' | 'Reserved' | 'Collected' | 'Cancelled';
-
-export const DONATION_STATUSES: DonationStatus[] = ['Available', 'Reserved', 'Collected', 'Cancelled'];
-
-/** Mirrors the statuses on the NGO "My Reservations" screen. */
-export type ReservationStatus = 'Active' | 'Collected' | 'Cancelled';
-
-export type Reservation = {
-  id: string;
-  ngoName: string;
-  status: ReservationStatus;
-  reservedAt: string; // ISO timestamp
-  collectedAt?: string; // ISO timestamp
-  cancelledAt?: string; // ISO timestamp
-};
-
-export type Donation = {
-  id: string; // e.g. DON01
+export interface Donation {
+  donationId?: string;
   enterpriseId: string;
   foodName: string;
-  category: DonationCategory;
+  category: string;
   description: string;
   quantity: number;
   collectionLocation: string;
-  bestBefore: string; // YYYY-MM-DD
-  status: DonationStatus;
-  createdAt: string; // ISO timestamp
-  updatedAt: string; // ISO timestamp
-  cancelledAt?: string; // ISO timestamp
-  /** Latest reservation on this donation, if any (including a cancelled one). */
-  reservation?: Reservation;
-};
-
-/** What the enterprise fills in on the create / edit form. */
-export type DonationInput = Pick<
-  Donation,
-  'foodName' | 'category' | 'description' | 'quantity' | 'collectionLocation' | 'bestBefore'
->;
+  collectionDeadline: Date;
+  expiryDate: Date;
+  status: (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS];
+  createdTimestamp: Date;
+}
