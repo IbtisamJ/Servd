@@ -15,5 +15,5 @@
 import { Redirect } from "expo-router";
 
 export default function IndexScreen() {
-  return <Redirect href="/Login" />;
+  return <Redirect href="/SplashScreen" />;
 }
