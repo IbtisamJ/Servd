@@ -9,7 +9,6 @@
 
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { registerUser, getAuthErrorMessage } from "../services/authService";
 import {
   ActivityIndicator,
   Image,
@@ -22,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getAuthErrorMessage, registerUser } from "../services/authService";
 
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { Colors } from "../constants/theme";
