@@ -12,15 +12,11 @@
  * - Displays the NGO's verification status.
  * - Handles loading, missing-document, and error states.
  * - Provides navigation back to the NGO list.
- *
- * Note:
- * - Approval and rejection actions must be connected to the
- *   backend workflow before they persist changes to Firestore.
  */
 
 import { FontAwesome5 } from "@react-native-vector-icons/fontawesome5";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -154,12 +150,11 @@ export default function NGOProfilePage() {
   const statusStyle = getStatusStyle();
   const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 
-  /**
-   * BACKEND PLACEHOLDER:
-   * Replace this handler with the backend approval/rejection service.
-   * No changes are currently written to Firestore by these actions.
+/**
+   * Updates the NGO's verification status in Firestore (approved or rejected),
+   * saving any rejection reason if applicable, and reloads the NGO details.
    */
-  const confirmDecision = (decision: Decision) => {
+const confirmDecision = (decision: Decision) => {
     // Require a rejection reason before continuing with a rejection.
     if (decision === "reject" && !reason.trim()) {
       Alert.alert(
@@ -178,23 +173,20 @@ export default function NGOProfilePage() {
         {
           text: "Continue",
           style: decision === "reject" ? "destructive" : "default",
-          onPress: () => {
-            // TODO (backend):
-            // await updateNGOVerificationStatus({
-            //   ngoId: id,
-            //   verificationStatus: decision === "approve"
-            //     ? "approved"
-            //     : "rejected",
-            //   rejectionReason:
-            //     decision === "reject" ? reason.trim() : undefined,
-            // });
-            //
-            // After success, call loadNGO() to refresh the details.
+          onPress: async () => {
+            try {
+              const newStatus = decision === "approve" ? "approved" : "rejected";
+              await updateDoc(doc(db, COLLECTIONS.NGOS, id), {
+                verificationStatus: newStatus,
+                rejectionReason: decision === "reject" ? reason.trim() : null,
+              });
 
-            Alert.alert(
-              "Not connected yet",
-              "This action will be available once the backend handler is integrated.",
-            );
+              Alert.alert("Success", `NGO application has been ${newStatus}.`);
+              loadNGO();
+            } catch (err) {
+              console.error("Failed to update NGO status:", err);
+              Alert.alert("Error", "Failed to update NGO status. Please try again.");
+            }
           },
         },
       ],
@@ -220,7 +212,7 @@ export default function NGOProfilePage() {
     children,
   }: {
     title: string;
-    icon: IconName;
+    icon: any;
     children: React.ReactNode;
   }) {
     return (
@@ -228,7 +220,7 @@ export default function NGOProfilePage() {
         <View style={styles.sectionHeading}>
           <View style={styles.sectionIcon}>
             <FontAwesome5
-              name="users"
+              name={icon}
               size={14}
               color={colors.textSecondary}
               iconStyle="solid"
@@ -240,7 +232,6 @@ export default function NGOProfilePage() {
       </View>
     );
   }
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.container}>

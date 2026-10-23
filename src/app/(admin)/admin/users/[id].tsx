@@ -22,8 +22,8 @@ import {
 } from "react-native";
 
 import { db } from "@/config/firebase";
-import { Colors, Radius, Spacing } from "@/constants/theme";
 import { ACCOUNT_STATUS, COLLECTIONS, ROLES } from "@/constants/roles";
+import { Colors, Radius, Spacing } from "@/constants/theme";
 import { useAuth } from "@/hooks/useAuth";
 
 type AdminUser = {
@@ -447,7 +447,7 @@ function SectionCard({
   description,
   children,
 }: {
-  icon: IconName;
+  icon: any;
   title: string;
   description: string;
   children: React.ReactNode;
@@ -457,7 +457,7 @@ function SectionCard({
       <View style={styles.sectionHeadingRow}>
         <View style={styles.sectionIcon}>
           <FontAwesome5
-            name="filter"
+            name={icon}
             size={16}
             color={colors.primary}
             iconStyle="solid"

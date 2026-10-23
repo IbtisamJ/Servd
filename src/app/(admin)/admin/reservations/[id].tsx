@@ -30,11 +30,11 @@ import {
   View,
 } from "react-native";
 
+import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import {
   getReservations,
   updateReservationStatus,
 } from "@/services/reservationService";
-import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 
 const colors = Colors.light;
 
@@ -218,7 +218,7 @@ export default function ReservationDetailsScreen() {
     children,
   }: {
     title: string;
-    icon: IconName;
+    icon: any;
     children: React.ReactNode;
   }) {
     return (
@@ -226,7 +226,7 @@ export default function ReservationDetailsScreen() {
         <View style={styles.sectionHeading}>
           <View style={styles.sectionIcon}>
             <FontAwesome5
-              name="sort"
+              name={icon}
               size={15}
               color={colors.primary}
               iconStyle="solid"
