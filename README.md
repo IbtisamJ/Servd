@@ -79,7 +79,7 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/15-admin-more.png" width="220"> | | |
 
-> 📌 **TODO:** add screenshots of the Food Enterprise screens (dashboard, create donation, my donations) in the same way.
+
 
 ---
 
