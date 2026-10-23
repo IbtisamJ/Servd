@@ -22,6 +22,7 @@ export interface Donation {
   category: string;
   description: string;
   quantity: number;
+  imageUrl?: string | null;
   collectionLocation: string;
   collectionDeadline: Date;
   expiryDate: Date;
