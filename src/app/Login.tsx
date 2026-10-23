@@ -114,8 +114,8 @@ export default function Login() {
         await playTruckAnimation();
         router.replace("/(enterprises)/enterprises");
       } else if (result.role === ROLES.ADMIN) {
-        await logoutUser();
-        setError("Administrator login is not available in this build yet.");
+        await playTruckAnimation();
+        router.replace("/admin");
       } else {
         await logoutUser();
         setError(
