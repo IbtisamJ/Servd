@@ -1,41 +1,48 @@
+
 import { auth, db } from "@/config/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
+import { COLLECTIONS } from "@/constants/roles";
 
 export interface CreateDonationInput {
-  title: string;
-  description?: string;
-  quantity: string | number;
-  expiryDate?: string;
-  pickupAddress?: string;
+  foodName: string;
+  category: string;
+  description: string;
+  quantity: number;
+  collectionLocation: string;
+  collectionDeadline: Date;
+  expiryDate: Date;
   imageUrl?: string | null;
 }
 
-/**
- * Creates a new donation document in Firestore with the uploaded image URL
- * and attributes it to the currently logged-in enterprise.
- */
-export async function createDonation(data: CreateDonationInput): Promise<string> {
+export async function createDonation(
+  data: CreateDonationInput
+): Promise<string> {
   const currentUser = auth.currentUser;
 
   if (!currentUser) {
     throw new Error("You must be logged in to create a donation.");
   }
 
-  // Reference the top-level 'donations' collection
-  const donationsRef = collection(db, "donations");
-
-  const docRef = await addDoc(donationsRef, {
-    enterpriseId: currentUser.uid,
-    title: data.title.trim(),
-    description: data.description?.trim() || "",
-    quantity: data.quantity,
-    expiryDate: data.expiryDate || null,
-    pickupAddress: data.pickupAddress || "",
-    imageUrl: data.imageUrl || null,
-    status: "available",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const docRef = await addDoc(
+    collection(db, COLLECTIONS.DONATIONS),
+    {
+      enterpriseId: currentUser.uid,
+      foodName: data.foodName.trim(),
+      category: data.category,
+      description: data.description.trim(),
+      quantity: data.quantity,
+      collectionLocation: data.collectionLocation.trim(),
+      collectionDeadline: data.collectionDeadline,
+      expiryDate: data.expiryDate,
+      imageUrl: data.imageUrl ?? null,
+      status: "available",
+      createdTimestamp: serverTimestamp(),
+    }
+  );
 
   return docRef.id;
 }
