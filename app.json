@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Servd",
+    "slug": "servd",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/Servd_Logo.png",
+    "scheme": "servd",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/images/Servd_Logo.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/Servd_Logo.png",
+        "backgroundColor": "#F0E6D2"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "foregroundImage": "./assets/images/Servd_Logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F0E6D2",
+          "image": "./assets/images/Servd_Logo.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
+
