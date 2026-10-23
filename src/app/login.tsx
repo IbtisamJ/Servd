@@ -112,7 +112,7 @@ export default function Login() {
         }
       } else if (result.role === ROLES.ENTERPRISE) {
         await playTruckAnimation();
-        router.replace("/EnterpriseDashboard");
+        router.replace("/(enterprises)/enterprises");
       } else if (result.role === ROLES.ADMIN) {
         await logoutUser();
         setError("Administrator login is not available in this build yet.");
