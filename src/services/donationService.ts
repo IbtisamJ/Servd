@@ -14,6 +14,7 @@
  */
 
 import { auth, db } from "@/config/firebase";
+import { COLLECTIONS, DONATION_STATUS } from "@/constants/roles";
 import { addDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 
 export interface CreateDonationInput {
@@ -37,7 +38,7 @@ export async function createDonation(data: CreateDonationInput): Promise<string>
   }
 
   // Reference the top-level 'donations' collection
-  const donationsRef = collection(db, "donations");
+  const donationsRef = collection(db, COLLECTIONS.DONATIONS);
 
   const docRef = await addDoc(donationsRef, {
     enterpriseId: currentUser.uid,
@@ -47,7 +48,7 @@ export async function createDonation(data: CreateDonationInput): Promise<string>
     expiryDate: data.expiryDate || null,
     pickupAddress: data.pickupAddress || "",
     imageUrl: data.imageUrl || null,
-    status: "available",
+    status: DONATION_STATUS.AVAILABLE,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -60,7 +61,7 @@ export async function createDonation(data: CreateDonationInput): Promise<string>
  * includes each document's ID so NGO screen can identify it
  */
 export async function getDonations() {
-  const donationsRef = collection(db, "donations");
+  const donationsRef = collection(db, COLLECTIONS.DONATIONS);
   const snapshot = await getDocs(donationsRef);
 
   return snapshot.docs.map((document) => ({
