@@ -20,11 +20,11 @@ import {
   View,
 } from "react-native";
 
-import { router, useFocusEffect } from "expo-router";
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { router, useFocusEffect } from "expo-router";
 
-import { getDonations } from "../../services/donationService";
 import { DONATION_STATUS } from "../../constants/roles";
+import { getDonations } from "../../services/donationService";
 import { styles } from "../../styles/AvailableDonations.style";
 
 import { Colors } from "../../constants/theme";
@@ -97,7 +97,7 @@ export default function AvailableDonations() {
    */
   const openDonation = (item: any) => {
     router.push({
-      pathname: "/donation-details",
+      pathname: "/ngos/donation-details",
       params: {
         documentId: item.id,
         donationId: item.donationId,

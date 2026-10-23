@@ -12,22 +12,15 @@
  * - Displays the NGO's verification status.
  * - Handles loading, missing-document, and error states.
  * - Provides navigation back to the NGO list.
-<<<<<<< HEAD
  *
  * Note:
  * - Approval and rejection actions must be connected to the
  *   backend workflow before they persist changes to Firestore.
-=======
->>>>>>> main
  */
 
 import { FontAwesome5 } from "@react-native-vector-icons/fontawesome5";
 import { useLocalSearchParams, useRouter } from "expo-router";
-<<<<<<< HEAD
-import { doc, getDoc } from "firebase/firestore";
-=======
 import { doc, getDoc, updateDoc } from "firebase/firestore";
->>>>>>> main
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -166,11 +159,7 @@ export default function NGOProfilePage() {
    * Replace this handler with the backend approval/rejection service.
    * No changes are currently written to Firestore by these actions.
    */
-<<<<<<< HEAD
-  const confirmDecision = (decision: Decision) => {
-=======
 const confirmDecision = (decision: Decision) => {
->>>>>>> main
     // Require a rejection reason before continuing with a rejection.
     if (decision === "reject" && !reason.trim()) {
       Alert.alert(
@@ -189,25 +178,6 @@ const confirmDecision = (decision: Decision) => {
         {
           text: "Continue",
           style: decision === "reject" ? "destructive" : "default",
-<<<<<<< HEAD
-          onPress: () => {
-            // TODO (backend):
-            // await updateNGOVerificationStatus({
-            //   ngoId: id,
-            //   verificationStatus: decision === "approve"
-            //     ? "approved"
-            //     : "rejected",
-            //   rejectionReason:
-            //     decision === "reject" ? reason.trim() : undefined,
-            // });
-            //
-            // After success, call loadNGO() to refresh the details.
-
-            Alert.alert(
-              "Not connected yet",
-              "This action will be available once the backend handler is integrated.",
-            );
-=======
           onPress: async () => {
             try {
               const newStatus = decision === "approve" ? "approved" : "rejected";
@@ -222,7 +192,6 @@ const confirmDecision = (decision: Decision) => {
               console.error("Failed to update NGO status:", err);
               Alert.alert("Error", "Failed to update NGO status. Please try again.");
             }
->>>>>>> main
           },
         },
       ],

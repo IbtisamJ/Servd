@@ -405,7 +405,7 @@ export default function MyReservations() {
             <TouchableOpacity
               style={styles.backButton}
               activeOpacity={0.7}
-              onPress={() => router.replace("/ngo-dashboard")}
+              onPress={() => router.replace("/ngos/ngo-dashboard")}
               accessibilityRole="button"
               accessibilityLabel="Go back to dashboard"
             >
@@ -487,7 +487,7 @@ export default function MyReservations() {
             <TouchableOpacity
               style={styles.browseButton}
               activeOpacity={0.8}
-              onPress={() => router.push("/available-donations")}
+              onPress={() => router.push("/ngos/available-donations")}
               accessibilityRole="button"
               accessibilityLabel="Explore available donations"
             >
