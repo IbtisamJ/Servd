@@ -1,13 +1,7 @@
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,20 +11,12 @@ import {
   Text,
   View,
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
-import {
-  COLLECTIONS,
-  RESERVATION_STATUS,
-} from "@/constants/roles";
-import {
-  Colors,
-  Fonts,
-  Radius,
-  Spacing,
-} from "@/constants/theme";
+import { COLLECTIONS, RESERVATION_STATUS } from "@/constants/roles";
+import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 
 const colors = Colors.light;
 
@@ -70,9 +56,7 @@ function getDate(value: unknown): Date | null {
   ) {
     const date = value.toDate();
 
-    return date instanceof Date && !Number.isNaN(date.getTime())
-      ? date
-      : null;
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
   }
 
   return null;
@@ -122,18 +106,13 @@ function getStatusStyle(status?: string) {
   }
 }
 
-function matchesFilter(
-  reservation: Reservation,
-  filter: FilterType,
-): boolean {
+function matchesFilter(reservation: Reservation, filter: FilterType): boolean {
   const status = (reservation.status ?? "").toLowerCase();
 
   if (filter === "all") return true;
-
   if (filter === "active") {
     return status === RESERVATION_STATUS.ACTIVE;
   }
-
   if (filter === "collected") {
     return status === RESERVATION_STATUS.COLLECTED;
   }
@@ -220,8 +199,7 @@ export default function ReservationsScreen() {
   );
 
   const activeCount = reservations.filter(
-    (item) =>
-      (item.status ?? "").toLowerCase() === RESERVATION_STATUS.ACTIVE,
+    (item) => (item.status ?? "").toLowerCase() === RESERVATION_STATUS.ACTIVE,
   ).length;
 
   const collectedCount = reservations.filter(
@@ -247,12 +225,10 @@ export default function ReservationsScreen() {
 
   if (authLoading || loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.helperText}>
-            Loading your reservations...
-          </Text>
+          <Text style={styles.helperText}>Loading your reservations...</Text>
         </View>
       </SafeAreaView>
     );
@@ -260,7 +236,7 @@ export default function ReservationsScreen() {
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.centered}>
           <Text style={styles.helperText}>Redirecting to sign in...</Text>
         </View>
@@ -269,8 +245,14 @@ export default function ReservationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.screen}>
+        <BrandHeader
+          role="ENTERPRISE"
+          actionLabel="Home"
+          onActionPress={() => router.replace("/enterprises" as never)}
+        />
+
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -295,7 +277,6 @@ export default function ReservationsScreen() {
               </View>
             </View>
 
-            {/* Summary cards */}
             <View style={styles.summaryRow}>
               <View style={styles.summaryCard}>
                 <View style={styles.summaryIcon}>
@@ -312,10 +293,7 @@ export default function ReservationsScreen() {
 
               <View style={styles.summaryCard}>
                 <View
-                  style={[
-                    styles.summaryIcon,
-                    { backgroundColor: "#E5F4E8" },
-                  ]}
+                  style={[styles.summaryIcon, { backgroundColor: "#E5F4E8" }]}
                 >
                   <FontAwesome5
                     name="check-circle"
@@ -330,10 +308,7 @@ export default function ReservationsScreen() {
 
               <View style={styles.summaryCard}>
                 <View
-                  style={[
-                    styles.summaryIcon,
-                    { backgroundColor: "#FCE8E6" },
-                  ]}
+                  style={[styles.summaryIcon, { backgroundColor: "#FCE8E6" }]}
                 >
                   <FontAwesome5
                     name="times-circle"
@@ -347,7 +322,6 @@ export default function ReservationsScreen() {
               </View>
             </View>
 
-            {/* Filters */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Your reservations</Text>
               <Text style={styles.resultCount}>
@@ -387,7 +361,6 @@ export default function ReservationsScreen() {
               })}
             </ScrollView>
 
-            {/* Reservation list */}
             {loadError ? (
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIcon}>
@@ -408,10 +381,7 @@ export default function ReservationsScreen() {
                   again.
                 </Text>
 
-                <Pressable
-                  onPress={retryLoading}
-                  style={styles.primaryButton}
-                >
+                <Pressable onPress={retryLoading} style={styles.primaryButton}>
                   <Text style={styles.primaryButtonText}>Try again</Text>
                 </Pressable>
               </View>
@@ -454,9 +424,7 @@ export default function ReservationsScreen() {
                     }
                     style={styles.primaryButton}
                   >
-                    <Text style={styles.primaryButtonText}>
-                      View donations
-                    </Text>
+                    <Text style={styles.primaryButtonText}>View donations</Text>
                   </Pressable>
                 )}
               </View>
@@ -479,10 +447,7 @@ export default function ReservationsScreen() {
                       : "Organisation details unavailable");
 
                   return (
-                    <View
-                      key={reservation.id}
-                      style={styles.reservationCard}
-                    >
+                    <View key={reservation.id} style={styles.reservationCard}>
                       <View style={styles.reservationTop}>
                         <View style={styles.foodIcon}>
                           <FontAwesome5
@@ -500,10 +465,7 @@ export default function ReservationsScreen() {
                           >
                             {title}
                           </Text>
-                          <Text
-                            style={styles.organisation}
-                            numberOfLines={2}
-                          >
+                          <Text style={styles.organisation} numberOfLines={2}>
                             {organisation}
                           </Text>
                         </View>
@@ -515,10 +477,7 @@ export default function ReservationsScreen() {
                           ]}
                         >
                           <Text
-                            style={[
-                              styles.statusText,
-                              { color: status.color },
-                            ]}
+                            style={[styles.statusText, { color: status.color }]}
                           >
                             {status.label}
                           </Text>
@@ -598,97 +557,6 @@ export default function ReservationsScreen() {
             )}
           </View>
         </ScrollView>
-
-        {/* Shared enterprise navigation */}
-        <View style={styles.bottomNav}>
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.replace("/enterprises" as never)}
-          >
-            <FontAwesome5
-              name="home"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Home</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() =>
-              router.push("/enterprises/donations" as never)
-            }
-          >
-            <FontAwesome5
-              name="box-open"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Donations</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.push("/notifications" as never)}
-          >
-            <FontAwesome5
-              name="bell"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Alerts</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() =>
-              router.push("/enterprises/donations/create" as never)
-            }
-          >
-            <View style={styles.addNavButton}>
-              <FontAwesome5
-                name="plus"
-                size={18}
-                color="#FFFFFF"
-                iconStyle="solid"
-              />
-            </View>
-            <Text style={styles.navLabel}>Add food</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() =>
-              router.replace("/enterprises/reservations" as never)
-            }
-          >
-            <FontAwesome5
-              name="clipboard-list"
-              size={19}
-              color={colors.primary}
-              iconStyle="solid"
-            />
-            <Text style={[styles.navLabel, styles.navLabelActive]}>
-              Collections
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.push("/enterprises/profile" as never)}
-          >
-            <FontAwesome5
-              name="user-circle"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Profile</Text>
-          </Pressable>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -965,41 +833,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: colors.text,
-  },
-  bottomNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingTop: 9,
-    paddingBottom: 8,
-    paddingHorizontal: 2,
-    borderTopWidth: 1,
-    borderTopColor: colors.backgroundElement,
-    backgroundColor: colors.background,
-  },
-  navItem: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  navLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 8,
-    color: colors.textSecondary,
-  },
-  navLabelActive: {
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  addNavButton: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 17,
-    backgroundColor: colors.primary,
   },
   centered: {
     flex: 1,

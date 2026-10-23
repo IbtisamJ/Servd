@@ -1,4 +1,3 @@
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router, useLocalSearchParams } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
@@ -13,13 +12,14 @@ import {
   Alert,
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
 import {
   COLLECTIONS,
@@ -34,6 +34,8 @@ import {
 
 const colors = Colors.light;
 
+type FirestoreDate = Date | { toDate: () => Date };
+
 type Donation = {
   donationId?: string;
   enterpriseId: string;
@@ -43,30 +45,37 @@ type Donation = {
   quantity: number;
   imageUrl?: string | null;
   collectionLocation: string;
-  collectionDeadline: Date | { toDate: () => Date };
-  expiryDate: Date | { toDate: () => Date };
+  collectionDeadline: FirestoreDate;
+  expiryDate: FirestoreDate;
   status: string;
-  createdTimestamp?: Date | { toDate: () => Date } | null;
+  createdTimestamp?: FirestoreDate | null;
 };
 
-function toDate(value?: Date | { toDate: () => Date } | null): Date | null {
-  if (!value) return null;
-
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
+function toDate(value?: FirestoreDate | null): Date | null {
+  if (!value) {
+    return null;
   }
 
-  if (typeof value.toDate === "function") {
-    const date = value.toDate();
-    return Number.isNaN(date.getTime()) ? null : date;
+  const date =
+    value instanceof Date
+      ? value
+      : typeof value.toDate === "function"
+        ? value.toDate()
+        : null;
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return null;
   }
 
-  return null;
+  return date;
 }
 
-function formatDate(value?: Date | { toDate: () => Date } | null) {
+function formatDate(value?: FirestoreDate | null): string {
   const date = toDate(value);
-  if (!date) return "Not provided";
+
+  if (!date) {
+    return "Not provided";
+  }
 
   return date.toLocaleDateString(undefined, {
     day: "numeric",
@@ -83,30 +92,35 @@ function getStatusStyle(status: string) {
         color: "#287A3D",
         label: "Available",
       };
+
     case DONATION_STATUS.RESERVED:
       return {
         backgroundColor: "#FFF0D5",
         color: "#996400",
         label: "Reserved",
       };
+
     case DONATION_STATUS.COLLECTED:
       return {
         backgroundColor: "#E5EDF9",
         color: "#315F9B",
         label: "Collected",
       };
+
     case DONATION_STATUS.EXPIRED:
       return {
         backgroundColor: "#FCE8E6",
         color: colors.error,
         label: "Expired",
       };
+
     case DONATION_STATUS.CANCELLED:
       return {
         backgroundColor: "#F0E6D2",
         color: colors.textSecondary,
         label: "Cancelled",
       };
+
     default:
       return {
         backgroundColor: colors.backgroundElement,
@@ -169,10 +183,18 @@ export default function DonationDetailsScreen() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
     if (!id || !userId) {
+      setDonation(null);
       setLoading(false);
       return;
     }
+
+    setLoading(true);
+    setDonation(null);
 
     const donationRef = doc(db, COLLECTIONS.DONATIONS, id);
 
@@ -187,7 +209,7 @@ export default function DonationDetailsScreen() {
 
         const data = snapshot.data() as Donation;
 
-        // Only show donations belonging to the signed-in enterprise.
+        // Enterprises may only view their own donations.
         if (data.enterpriseId !== userId) {
           setDonation(null);
           setLoading(false);
@@ -200,6 +222,7 @@ export default function DonationDetailsScreen() {
       (error) => {
         console.error("Error loading donation:", error);
         setLoading(false);
+
         Alert.alert(
           "Unable to load donation",
           "Please try again later.",
@@ -208,12 +231,20 @@ export default function DonationDetailsScreen() {
     );
 
     return unsubscribe;
-  }, [id, userId]);
+  }, [id, userId, authLoading]);
 
   const updateDonationStatus = async (
     nextStatus: (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS],
   ) => {
-    if (!id || !userId || !donation || updatingStatus) return;
+    if (
+      !id ||
+      !userId ||
+      !donation ||
+      donation.enterpriseId !== userId ||
+      updatingStatus
+    ) {
+      return;
+    }
 
     try {
       setUpdatingStatus(true);
@@ -228,6 +259,7 @@ export default function DonationDetailsScreen() {
       );
     } catch (error) {
       console.error("Error updating donation status:", error);
+
       Alert.alert(
         "Update failed",
         "We couldn't update this donation. Please try again.",
@@ -238,11 +270,18 @@ export default function DonationDetailsScreen() {
   };
 
   const confirmCancelDonation = () => {
+    if (donation?.status !== DONATION_STATUS.AVAILABLE) {
+      return;
+    }
+
     Alert.alert(
       "Cancel donation?",
       "This will mark the donation as cancelled.",
       [
-        { text: "Keep donation", style: "cancel" },
+        {
+          text: "Keep donation",
+          style: "cancel",
+        },
         {
           text: "Cancel donation",
           style: "destructive",
@@ -255,7 +294,15 @@ export default function DonationDetailsScreen() {
 
   if (authLoading || loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <BrandHeader
+          role="ENTERPRISE"
+          actionLabel="Donations"
+          onActionPress={() =>
+            router.replace("/enterprises/donations" as never)
+          }
+        />
+
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.helperText}>Loading donation...</Text>
@@ -266,9 +313,12 @@ export default function DonationDetailsScreen() {
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.centered}>
-          <Text style={styles.helperText}>Redirecting to sign in...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.helperText}>
+            Redirecting to sign in...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -276,7 +326,15 @@ export default function DonationDetailsScreen() {
 
   if (!donation) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <BrandHeader
+          role="ENTERPRISE"
+          actionLabel="Donations"
+          onActionPress={() =>
+            router.replace("/enterprises/donations" as never)
+          }
+        />
+
         <View style={styles.centered}>
           <View style={styles.emptyIcon}>
             <FontAwesome5
@@ -286,12 +344,16 @@ export default function DonationDetailsScreen() {
               iconStyle="solid"
             />
           </View>
+
           <Text style={styles.emptyTitle}>Donation not found</Text>
+
           <Text style={styles.helperText}>
             This donation may have been removed or may not belong to your
             enterprise.
           </Text>
+
           <Pressable
+            accessibilityRole="button"
             onPress={() =>
               router.replace("/enterprises/donations" as never)
             }
@@ -307,37 +369,37 @@ export default function DonationDetailsScreen() {
   }
 
   const statusStyle = getStatusStyle(donation.status);
-  const isAvailable =
-    donation.status === DONATION_STATUS.AVAILABLE;
+  const isAvailable = donation.status === DONATION_STATUS.AVAILABLE;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Donations"
+        onActionPress={() =>
+          router.replace("/enterprises/donations" as never)
+        }
+      />
+
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.workspace}>
-            <View style={styles.header}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Back to donations"
-                onPress={() =>
-                  router.replace("/enterprises/donations" as never)
-                }
-                style={styles.backButton}
-              >
-                <FontAwesome5
-                  name="arrow-left"
-                  size={16}
-                  color={colors.text}
-                  iconStyle="solid"
-                />
-              </Pressable>
-
+            <View style={styles.pageHeader}>
               <View style={styles.headerCopy}>
                 <Text style={styles.eyebrow}>YOUR ENTERPRISE</Text>
                 <Text style={styles.heading}>Donation details</Text>
+              </View>
+
+              <View style={styles.headerIcon}>
+                <FontAwesome5
+                  name="box-open"
+                  size={17}
+                  color="#FFFFFF"
+                  iconStyle="solid"
+                />
               </View>
             </View>
 
@@ -392,6 +454,7 @@ export default function DonationDetailsScreen() {
                   color={colors.secondary}
                   iconStyle="solid"
                 />
+
                 <View>
                   <Text style={styles.quantityLabel}>Quantity</Text>
                   <Text style={styles.quantityValue}>
@@ -403,13 +466,16 @@ export default function DonationDetailsScreen() {
               <View style={styles.divider} />
 
               <Text style={styles.sectionTitle}>Description</Text>
+
               <Text style={styles.description}>
                 {donation.description || "No description provided."}
               </Text>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Collection information</Text>
+              <Text style={styles.sectionTitle}>
+                Collection information
+              </Text>
 
               <DetailRow
                 icon="map-marker-alt"
@@ -439,6 +505,7 @@ export default function DonationDetailsScreen() {
             {isAvailable ? (
               <View style={styles.actionsCard}>
                 <Text style={styles.sectionTitle}>Manage donation</Text>
+
                 <Text style={styles.sectionDescription}>
                   If this food is no longer available, you can cancel the
                   listing.
@@ -448,7 +515,11 @@ export default function DonationDetailsScreen() {
                   accessibilityRole="button"
                   disabled={updatingStatus}
                   onPress={confirmCancelDonation}
-                  style={styles.cancelDonationButton}
+                  style={({ pressed }) => [
+                    styles.cancelDonationButton,
+                    pressed && styles.pressed,
+                    updatingStatus && styles.disabledButton,
+                  ]}
                 >
                   {updatingStatus ? (
                     <ActivityIndicator color={colors.primary} />
@@ -460,8 +531,11 @@ export default function DonationDetailsScreen() {
                       iconStyle="solid"
                     />
                   )}
+
                   <Text style={styles.cancelDonationText}>
-                    Cancel donation
+                    {updatingStatus
+                      ? "Updating donation..."
+                      : "Cancel donation"}
                   </Text>
                 </Pressable>
               </View>
@@ -472,7 +546,10 @@ export default function DonationDetailsScreen() {
               onPress={() =>
                 router.replace("/enterprises/donations" as never)
               }
-              style={styles.primaryButton}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+              ]}
             >
               <FontAwesome5
                 name="arrow-left"
@@ -480,102 +557,13 @@ export default function DonationDetailsScreen() {
                 color="#FFFFFF"
                 iconStyle="solid"
               />
+
               <Text style={styles.primaryButtonText}>
                 Back to donations
               </Text>
             </Pressable>
           </View>
         </ScrollView>
-
-        <View style={styles.bottomNav}>
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.replace("/enterprises" as never)}
-          >
-            <FontAwesome5
-              name="home"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Home</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() =>
-              router.replace("/enterprises/donations" as never)
-            }
-          >
-            <FontAwesome5
-              name="box-open"
-              size={19}
-              color={colors.primary}
-              iconStyle="solid"
-            />
-            <Text style={[styles.navLabel, styles.navLabelActive]}>
-              Donations
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.push("/notifications" as never)}
-          >
-            <FontAwesome5
-              name="bell"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Alerts</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() =>
-              router.push("/enterprises/donations/create" as never)
-            }
-          >
-            <View style={styles.addNavButton}>
-              <FontAwesome5
-                name="plus"
-                size={18}
-                color="#FFFFFF"
-                iconStyle="solid"
-              />
-            </View>
-            <Text style={styles.navLabel}>Add food</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() =>
-              router.push("/enterprises/reservations" as never)
-            }
-          >
-            <FontAwesome5
-              name="clipboard-list"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Collections</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.push("/enterprises/profile" as never)}
-          >
-            <FontAwesome5
-              name="user-circle"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Profile</Text>
-          </Pressable>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -602,20 +590,11 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     gap: Spacing.three,
   },
-  header: {
+  pageHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: Spacing.three,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: Radius.md,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
   },
   headerCopy: {
     flex: 1,
@@ -632,6 +611,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.heading,
     fontSize: 25,
     color: colors.text,
+  },
+  headerIcon: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: Radius.md,
+    backgroundColor: colors.primary,
   },
   heroImage: {
     width: "100%",
@@ -802,41 +789,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  bottomNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingTop: 9,
-    paddingBottom: 8,
-    paddingHorizontal: 2,
-    borderTopWidth: 1,
-    borderTopColor: colors.backgroundElement,
-    backgroundColor: colors.background,
-  },
-  navItem: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  navLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 8,
-    color: colors.textSecondary,
-  },
-  navLabelActive: {
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  addNavButton: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 17,
-    backgroundColor: colors.primary,
-  },
   centered: {
     flex: 1,
     alignItems: "center",
@@ -864,5 +816,11 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: "center",
     color: colors.textSecondary,
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

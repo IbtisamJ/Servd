@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,9 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import { COLLECTIONS, RESERVATION_STATUS } from "@/constants/roles";
@@ -22,18 +24,14 @@ import {
 } from "@/services/reservationService";
 
 type ReservationData = {
+  enterpriseId?: string;
   donationId?: string;
   donationDocumentId?: string;
   ngoId?: string;
   foodName?: string;
   collectionLocation?: string;
   status?: string;
-  createdTimestamp?:
-    | {
-        toDate?: () => Date;
-      }
-    | Date
-    | string;
+  createdTimestamp?: { toDate?: () => Date } | Date | string;
   updatedTimestamp?: unknown;
 };
 
@@ -42,25 +40,23 @@ export default function ReservationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [reservation, setReservation] = useState<ReservationData | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     let unsubscribeReservation: (() => void) | undefined;
+    let active = true;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       unsubscribeReservation?.();
+      unsubscribeReservation = undefined;
 
       if (!user) {
-        setCurrentUserId(null);
         setReservation(null);
         setLoading(false);
-        router.replace("../Login");
+        router.replace("/Login" as never);
         return;
       }
-
-      setCurrentUserId(user.uid);
 
       if (!id) {
         setReservation(null);
@@ -73,6 +69,8 @@ export default function ReservationDetailScreen() {
       unsubscribeReservation = onSnapshot(
         doc(db, COLLECTIONS.RESERVATIONS, id),
         (snapshot) => {
+          if (!active) return;
+
           if (!snapshot.exists()) {
             setReservation(null);
             setLoading(false);
@@ -81,9 +79,7 @@ export default function ReservationDetailScreen() {
 
           const data = snapshot.data() as ReservationData;
 
-          // This service creates NGO reservations.
-          // Only the NGO that owns the reservation may view it here.
-          if (data.ngoId !== user.uid) {
+          if (data.enterpriseId !== user.uid) {
             setReservation(null);
             setLoading(false);
             return;
@@ -94,6 +90,9 @@ export default function ReservationDetailScreen() {
         },
         (error) => {
           console.error("Reservation loading error:", error);
+
+          if (!active) return;
+
           setLoading(false);
           Alert.alert(
             "Unable to load reservation",
@@ -104,6 +103,7 @@ export default function ReservationDetailScreen() {
     });
 
     return () => {
+      active = false;
       unsubscribeAuth();
       unsubscribeReservation?.();
     };
@@ -125,7 +125,7 @@ export default function ReservationDetailScreen() {
       "toDate" in value &&
       typeof value.toDate === "function"
     ) {
-      date = (value.toDate as () => Date)();
+      date = value.toDate();
     }
 
     if (!date || Number.isNaN(date.getTime())) {
@@ -201,7 +201,7 @@ export default function ReservationDetailScreen() {
     <View style={styles.detailRow} key={label}>
       <View style={styles.detailIcon}>
         <FontAwesome5
-          name="users"
+          name={icon as never}
           iconStyle="solid"
           size={16}
           color={Colors.light.secondary}
@@ -217,170 +217,191 @@ export default function ReservationDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: "Reservation details" }} />
-        <ActivityIndicator size="large" color={Colors.light.primary} />
-        <Text style={styles.mutedText}>Loading reservation...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={Colors.light.primary} />
+          <Text style={styles.mutedText}>Loading reservation...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!reservation) {
     return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: "Reservation details" }} />
-        <FontAwesome5
-          name="clipboard-list"
-          iconStyle="solid"
-          size={34}
-          color={Colors.light.secondary}
-        />
-        <Text style={styles.emptyTitle}>Reservation not found</Text>
-        <Text style={styles.mutedText}>
-          This reservation may not exist or may belong to another account.
-        </Text>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.center}>
+          <FontAwesome5
+            name="clipboard-list"
+            iconStyle="solid"
+            size={34}
+            color={Colors.light.secondary}
+          />
+          <Text style={styles.emptyTitle}>Reservation not found</Text>
+          <Text style={styles.mutedText}>
+            This reservation may not exist or may belong to another account.
+          </Text>
 
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.primaryButtonText}>Go back</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.primaryButtonText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const status = reservation.status ?? "unknown";
+  const status = (reservation.status ?? "unknown").toLowerCase();
   const isActive = status === RESERVATION_STATUS.ACTIVE;
 
   return (
-    <View style={styles.screen}>
-      <Stack.Screen options={{ title: "Reservation details" }} />
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.screen}>
+        <Stack.Screen options={{ title: "Reservation details" }} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+        <BrandHeader
+          role="ENTERPRISE"
+          actionLabel="Collections"
+          onActionPress={() =>
+            router.replace("/enterprises/reservations" as never)
+          }
+        />
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <FontAwesome5
-            name="arrow-left"
-            iconStyle="solid"
-            size={15}
-            color={Colors.light.text}
-          />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <FontAwesome5
+              name="arrow-left"
+              iconStyle="solid"
+              size={15}
+              color={Colors.light.text}
+            />
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
 
-        <Text style={styles.eyebrow}>RESERVATION DETAILS</Text>
-        <Text style={styles.title}>
-          {reservation.foodName || "Food reservation"}
-        </Text>
-        <Text style={styles.subtitle}>
-          Review the reservation and manage collection.
-        </Text>
+          <Text style={styles.eyebrow}>RESERVATION DETAILS</Text>
+          <Text style={styles.title}>
+            {reservation.foodName || "Food reservation"}
+          </Text>
+          <Text style={styles.subtitle}>
+            Review the reservation and manage collection.
+          </Text>
 
-        <View style={styles.statusCard}>
-          <FontAwesome5
-            name={
-              status === RESERVATION_STATUS.COLLECTED
-                ? "check-circle"
-                : status === RESERVATION_STATUS.CANCELLED
-                  ? "times-circle"
-                  : "clock"
-            }
-            iconStyle="solid"
-            size={25}
-            color={
-              status === RESERVATION_STATUS.CANCELLED
-                ? Colors.light.error
-                : Colors.light.secondary
-            }
-          />
-          <View style={styles.statusContent}>
-            <Text style={styles.detailLabel}>Current status</Text>
-            <Text style={styles.statusValue}>{status.replace(/_/g, " ")}</Text>
+          <View style={styles.statusCard}>
+            <FontAwesome5
+              name={
+                status === RESERVATION_STATUS.COLLECTED
+                  ? "check-circle"
+                  : status === RESERVATION_STATUS.CANCELLED
+                    ? "times-circle"
+                    : "clock"
+              }
+              iconStyle="solid"
+              size={25}
+              color={
+                status === RESERVATION_STATUS.CANCELLED
+                  ? Colors.light.error
+                  : Colors.light.secondary
+              }
+            />
+            <View style={styles.statusContent}>
+              <Text style={styles.detailLabel}>Current status</Text>
+              <Text style={styles.statusValue}>
+                {status.replace(/_/g, " ")}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reservation information</Text>
-          <View style={styles.card}>
-            {renderDetail(
-              "utensils",
-              "Food item",
-              reservation.foodName || "Not provided",
-            )}
-            {renderDetail(
-              "calendar-plus",
-              "Reserved on",
-              formatDate(reservation.createdTimestamp),
-            )}
-            {renderDetail(
-              "id-card",
-              "NGO account UID",
-              reservation.ngoId || currentUserId || "Not provided",
-            )}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Collection details</Text>
-          <View style={styles.card}>
-            {renderDetail(
-              "map-marker-alt",
-              "Collection location",
-              reservation.collectionLocation || "Not provided",
-            )}
-            {renderDetail(
-              "hashtag",
-              "Donation ID",
-              reservation.donationId || "Not provided",
-            )}
-          </View>
-        </View>
-
-        {isActive && (
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.primaryButton, updating && styles.disabledButton]}
-              disabled={updating}
-              onPress={() => confirmStatusChange("collect")}
-            >
-              {updating ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <FontAwesome5
-                    name="check"
-                    iconStyle="solid"
-                    size={16}
-                    color="#FFFFFF"
-                  />
-                  <Text style={styles.primaryButtonText}>
-                    Mark as collected
-                  </Text>
-                </>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reservation information</Text>
+            <View style={styles.card}>
+              {renderDetail(
+                "utensils",
+                "Food item",
+                reservation.foodName || "Not provided",
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.cancelButton, updating && styles.disabledButton]}
-              disabled={updating}
-              onPress={() => confirmStatusChange("cancel")}
-            >
-              <Text style={styles.cancelButtonText}>Cancel reservation</Text>
-            </TouchableOpacity>
+              {renderDetail(
+                "calendar-plus",
+                "Reserved on",
+                formatDate(reservation.createdTimestamp),
+              )}
+              {renderDetail(
+                "user",
+                "NGO account UID",
+                reservation.ngoId || "Not provided",
+              )}
+            </View>
           </View>
-        )}
-      </ScrollView>
-    </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Collection details</Text>
+            <View style={styles.card}>
+              {renderDetail(
+                "map-marker-alt",
+                "Collection location",
+                reservation.collectionLocation || "Not provided",
+              )}
+              {renderDetail(
+                "hashtag",
+                "Donation ID",
+                reservation.donationId || "Not provided",
+              )}
+            </View>
+          </View>
+
+          {isActive && (
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  updating && styles.disabledButton,
+                ]}
+                disabled={updating}
+                onPress={() => confirmStatusChange("collect")}
+              >
+                {updating ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <FontAwesome5
+                      name="check"
+                      iconStyle="solid"
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.primaryButtonText}>
+                      Mark as collected
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelButton, updating && styles.disabledButton]}
+                disabled={updating}
+                onPress={() => confirmStatusChange("cancel")}
+              >
+                <Text style={styles.cancelButtonText}>Cancel reservation</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: Colors.light.background,

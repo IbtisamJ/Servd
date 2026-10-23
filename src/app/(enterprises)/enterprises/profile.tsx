@@ -16,6 +16,7 @@ import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { auth, db } from "@/config/firebase";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import { COLLECTIONS } from "@/constants/roles";
+import { BrandHeader } from "@/components/enterprise";
 
 type ProfileData = Record<string, unknown>;
 
@@ -42,7 +43,7 @@ export default function EnterpriseProfileScreen() {
         setEnterprise(null);
         setAccount(null);
         setLoading(false);
-        router.replace("../Login");
+        router.replace("/Login" as never);
         return;
       }
 
@@ -145,7 +146,7 @@ export default function EnterpriseProfileScreen() {
           try {
             setSigningOut(true);
             await signOut(auth);
-            router.replace("../Login");
+            router.replace("/Login" as never);
           } catch (error) {
             console.error("Sign-out error:", error);
             Alert.alert("Sign out failed", "Please try again.");
@@ -161,7 +162,7 @@ export default function EnterpriseProfileScreen() {
     <View style={styles.infoRow} key={label}>
       <View style={styles.infoIcon}>
         <FontAwesome5
-          name="filter"
+          name={icon as never}
           size={16}
           color={Colors.light.secondary}
           iconStyle="solid"
@@ -186,6 +187,13 @@ export default function EnterpriseProfileScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* Shared Servd branding keeps enterprise screens consistent. */}
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Home"
+        onActionPress={() => router.replace("/enterprises" as never)}
+      />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -209,7 +217,6 @@ export default function EnterpriseProfileScreen() {
           </View>
 
           <Text style={styles.enterpriseName}>{enterpriseName}</Text>
-
           <Text style={styles.profileEmail}>{email}</Text>
 
           <View style={styles.statusPill}>
@@ -290,73 +297,6 @@ export default function EnterpriseProfileScreen() {
           Servd · Connecting surplus food with communities
         </Text>
       </ScrollView>
-
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.replace("/enterprises")}
-        >
-          <FontAwesome5
-            name="home"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/enterprises/donations")}
-        >
-          <FontAwesome5
-            name="box-open"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Donations</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/enterprises/reservations")}
-        >
-          <FontAwesome5
-            name="clipboard-list"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Reservations</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/notifications")}
-        >
-          <FontAwesome5
-            name="bell"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Alerts</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.replace("/enterprises/profile")}
-        >
-          <FontAwesome5
-            name="user-circle"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.primary}
-          />
-          <Text style={[styles.navLabel, styles.activeNavLabel]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -556,35 +496,5 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: "center",
     marginTop: Spacing.four,
-  },
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.backgroundElement,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.four,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.one,
-    paddingVertical: Spacing.one,
-  },
-  navLabel: {
-    fontFamily: Fonts.navigation,
-    fontSize: 10,
-    color: Colors.light.textSecondary,
-  },
-  activeNavLabel: {
-    color: Colors.light.primary,
-    fontWeight: "700",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -7,9 +7,9 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { onAuthStateChanged, User } from 'firebase/auth';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { onAuthStateChanged, User } from "firebase/auth";
 import {
   collection,
   doc,
@@ -18,13 +18,14 @@ import {
   query,
   updateDoc,
   where,
-} from 'firebase/firestore';
-import FontAwesome5 from '@react-native-vector-icons/fontawesome5';
+} from "firebase/firestore";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 
-import { auth, db } from '@/config/firebase';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { auth, db } from "@/config/firebase";
+import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
+import { BrandHeader } from "@/components/enterprise";
 
-const NOTIFICATIONS_COLLECTION = 'Notifications';
+const NOTIFICATIONS_COLLECTION = "Notifications";
 
 interface AppNotification {
   id: string;
@@ -35,12 +36,15 @@ interface AppNotification {
   recipientId?: string;
   read?: boolean;
   isRead?: boolean;
-  createdAt?: {
-    toDate?: () => Date;
-  } | Date | string;
+  createdAt?:
+    | {
+        toDate?: () => Date;
+      }
+    | Date
+    | string;
 }
 
-type FilterType = 'all' | 'unread';
+type FilterType = "all" | "unread";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -48,7 +52,7 @@ export default function NotificationsScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<FilterType>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function NotificationsScreen() {
       if (!currentUser) {
         setNotifications([]);
         setLoading(false);
-        router.replace('../Login');
+        router.replace("/Login" as never);
         return;
       }
 
@@ -69,8 +73,8 @@ export default function NotificationsScreen() {
 
       const notificationsQuery = query(
         collection(db, NOTIFICATIONS_COLLECTION),
-        where('recipientId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc'),
+        where("recipientId", "==", currentUser.uid),
+        orderBy("createdAt", "desc"),
       );
 
       unsubscribeNotifications = onSnapshot(
@@ -85,11 +89,11 @@ export default function NotificationsScreen() {
           setLoading(false);
         },
         (error) => {
-          console.error('Error loading notifications:', error);
+          console.error("Error loading notifications:", error);
           setLoading(false);
           Alert.alert(
-            'Unable to load notifications',
-            'Please check your connection and try again. If the query requires a Firestore index, check the Firebase console for a suggested index.',
+            "Unable to load notifications",
+            "Please check your connection and try again. If the query requires a Firestore index, check the Firebase console for a suggested index.",
           );
         },
       );
@@ -104,56 +108,54 @@ export default function NotificationsScreen() {
   const isRead = (item: AppNotification) =>
     item.read === true || item.isRead === true;
 
-  const unreadCount = notifications.filter(
-    (item) => !isRead(item),
-  ).length;
+  const unreadCount = notifications.filter((item) => !isRead(item)).length;
 
   const filteredNotifications = notifications.filter((item) =>
-    filter === 'unread' ? !isRead(item) : true,
+    filter === "unread" ? !isRead(item) : true,
   );
 
-  const getDate = (value: AppNotification['createdAt']) => {
-    if (!value) return 'Date unavailable';
+  const getDate = (value: AppNotification["createdAt"]) => {
+    if (!value) return "Date unavailable";
 
     let date: Date | null = null;
 
     if (value instanceof Date) {
       date = value;
-    } else if (typeof value === 'string') {
+    } else if (typeof value === "string") {
       const parsed = new Date(value);
       if (!Number.isNaN(parsed.getTime())) date = parsed;
-    } else if (typeof value === 'object' && value.toDate) {
+    } else if (typeof value === "object" && value.toDate) {
       date = value.toDate();
     }
 
     if (!date || Number.isNaN(date.getTime())) {
-      return 'Date unavailable';
+      return "Date unavailable";
     }
 
     return date.toLocaleString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getIcon = (type?: string) => {
     switch (type?.toLowerCase()) {
-      case 'reservation':
-      case 'booking':
-        return 'calendar-check';
-      case 'donation':
-        return 'box-open';
-      case 'collection':
-      case 'collected':
-        return 'check-circle';
-      case 'cancelled':
-      case 'cancellation':
-        return 'times-circle';
+      case "reservation":
+      case "booking":
+        return "calendar-check";
+      case "donation":
+        return "box-open";
+      case "collection":
+      case "collected":
+        return "check-circle";
+      case "cancelled":
+      case "cancellation":
+        return "times-circle";
       default:
-        return 'bell';
+        return "bell";
     }
   };
 
@@ -163,17 +165,14 @@ export default function NotificationsScreen() {
     setUpdatingId(item.id);
 
     try {
-      await updateDoc(
-        doc(db, NOTIFICATIONS_COLLECTION, item.id),
-        {
-          read: true,
-        },
-      );
+      await updateDoc(doc(db, NOTIFICATIONS_COLLECTION, item.id), {
+        read: true,
+      });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error("Error marking notification as read:", error);
       Alert.alert(
-        'Update failed',
-        'This notification could not be marked as read.',
+        "Update failed",
+        "This notification could not be marked as read.",
       );
     } finally {
       setUpdatingId(null);
@@ -183,41 +182,31 @@ export default function NotificationsScreen() {
   const markAllAsRead = async () => {
     if (!user || unreadCount === 0) return;
 
-    Alert.alert(
-      'Mark all as read',
-      'Mark all your notifications as read?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark all',
-          onPress: async () => {
-            const unread = notifications.filter(
-              (item) => !isRead(item),
-            );
+    Alert.alert("Mark all as read", "Mark all your notifications as read?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Mark all",
+        onPress: async () => {
+          const unread = notifications.filter((item) => !isRead(item));
 
-            try {
-              await Promise.all(
-                unread.map((item) =>
-                  updateDoc(
-                    doc(db, NOTIFICATIONS_COLLECTION, item.id),
-                    { read: true },
-                  ),
-                ),
-              );
-            } catch (error) {
-              console.error(
-                'Error marking all notifications as read:',
-                error,
-              );
-              Alert.alert(
-                'Update failed',
-                'Some notifications could not be updated. Please try again.',
-              );
-            }
-          },
+          try {
+            await Promise.all(
+              unread.map((item) =>
+                updateDoc(doc(db, NOTIFICATIONS_COLLECTION, item.id), {
+                  read: true,
+                }),
+              ),
+            );
+          } catch (error) {
+            console.error("Error marking all notifications as read:", error);
+            Alert.alert(
+              "Update failed",
+              "Some notifications could not be updated. Please try again.",
+            );
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const renderNotification = ({ item }: { item: AppNotification }) => {
@@ -225,10 +214,7 @@ export default function NotificationsScreen() {
 
     return (
       <TouchableOpacity
-        style={[
-          styles.notificationCard,
-          !read && styles.unreadCard,
-        ]}
+        style={[styles.notificationCard, !read && styles.unreadCard]}
         onPress={() => markAsRead(item)}
         activeOpacity={0.8}
         disabled={updatingId === item.id}
@@ -245,19 +231,17 @@ export default function NotificationsScreen() {
         <View style={styles.notificationContent}>
           <View style={styles.notificationHeading}>
             <Text style={styles.notificationTitle}>
-              {item.title || 'Notification'}
+              {item.title || "Notification"}
             </Text>
 
             {!read && <View style={styles.unreadDot} />}
           </View>
 
           <Text style={styles.notificationMessage}>
-            {item.message || item.body || 'You have a new notification.'}
+            {item.message || item.body || "You have a new notification."}
           </Text>
 
-          <Text style={styles.notificationDate}>
-            {getDate(item.createdAt)}
-          </Text>
+          <Text style={styles.notificationDate}>{getDate(item.createdAt)}</Text>
 
           {updatingId === item.id && (
             <ActivityIndicator
@@ -273,6 +257,13 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* Shared Servd branding keeps the header consistent across screens. */}
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Home"
+        onActionPress={() => router.replace("/enterprises" as never)}
+      />
+
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
@@ -291,7 +282,7 @@ export default function NotificationsScreen() {
             {unreadCount > 0 && (
               <View style={styles.countBadge}>
                 <Text style={styles.countText}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </Text>
               </View>
             )}
@@ -304,16 +295,17 @@ export default function NotificationsScreen() {
 
         <View style={styles.filterRow}>
           <TouchableOpacity
-            onPress={() => setFilter('all')}
+            accessibilityRole="button"
+            onPress={() => setFilter("all")}
             style={[
               styles.filterButton,
-              filter === 'all' && styles.activeFilter,
+              filter === "all" && styles.activeFilter,
             ]}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === 'all' && styles.activeFilterText,
+                filter === "all" && styles.activeFilterText,
               ]}
             >
               All ({notifications.length})
@@ -321,16 +313,17 @@ export default function NotificationsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setFilter('unread')}
+            accessibilityRole="button"
+            onPress={() => setFilter("unread")}
             style={[
               styles.filterButton,
-              filter === 'unread' && styles.activeFilter,
+              filter === "unread" && styles.activeFilter,
             ]}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === 'unread' && styles.activeFilterText,
+                filter === "unread" && styles.activeFilterText,
               ]}
             >
               Unread ({unreadCount})
@@ -339,6 +332,7 @@ export default function NotificationsScreen() {
 
           {unreadCount > 0 && (
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.markAllButton}
               onPress={markAllAsRead}
             >
@@ -350,13 +344,8 @@ export default function NotificationsScreen() {
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator
-            size="large"
-            color={Colors.light.primary}
-          />
-          <Text style={styles.stateText}>
-            Loading notifications...
-          </Text>
+          <ActivityIndicator size="large" color={Colors.light.primary} />
+          <Text style={styles.stateText}>Loading notifications...</Text>
         </View>
       ) : (
         <FlatList
@@ -365,15 +354,14 @@ export default function NotificationsScreen() {
           renderItem={renderNotification}
           contentContainerStyle={[
             styles.listContent,
-            filteredNotifications.length === 0 &&
-              styles.emptyListContent,
+            filteredNotifications.length === 0 && styles.emptyListContent,
           ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
                 <FontAwesome5
-                  name={filter === 'unread' ? 'check' : 'bell-slash'}
+                  name={filter === "unread" ? "check" : "bell-slash"}
                   iconStyle="solid"
                   size={28}
                   color={Colors.light.secondary}
@@ -381,89 +369,20 @@ export default function NotificationsScreen() {
               </View>
 
               <Text style={styles.emptyTitle}>
-                {filter === 'unread'
-                  ? 'You’re all caught up'
-                  : 'No notifications yet'}
+                {filter === "unread"
+                  ? "You’re all caught up"
+                  : "No notifications yet"}
               </Text>
 
               <Text style={styles.emptyDescription}>
-                {filter === 'unread'
-                  ? 'You have no unread notifications.'
-                  : 'When there are updates about your account, they’ll appear here.'}
+                {filter === "unread"
+                  ? "You have no unread notifications."
+                  : "When there are updates about your account, they’ll appear here."}
               </Text>
             </View>
           }
         />
       )}
-
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.replace('/enterprises')}
-        >
-          <FontAwesome5
-            name="home"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/enterprises/donations')}
-        >
-          <FontAwesome5
-            name="box-open"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Donations</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/enterprises/reservations')}
-        >
-          <FontAwesome5
-            name="clipboard-list"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Reservations</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/notifications')}
-        >
-          <FontAwesome5
-            name="bell"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.primary}
-          />
-          <Text style={[styles.navLabel, styles.activeNavLabel]}>
-            Alerts
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.replace('/enterprises/profile')}
-        >
-          <FontAwesome5
-            name="user-circle"
-            iconStyle="solid"
-            size={19}
-            color={Colors.light.textSecondary}
-          />
-          <Text style={styles.navLabel}>Profile</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -480,9 +399,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   headerTextContainer: {
     flex: 1,
@@ -490,7 +409,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontFamily: Fonts.button,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1.5,
     color: Colors.light.secondary,
     marginBottom: Spacing.one,
@@ -498,7 +417,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.heading,
     fontSize: 29,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.light.text,
   },
   subtitle: {
@@ -512,43 +431,43 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: Radius.lg,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.light.backgroundElement,
   },
   countBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: -5,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: Colors.light.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 4,
   },
   countText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontFamily: Fonts.button,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.two,
     marginTop: Spacing.four,
     marginBottom: Spacing.two,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   filterButton: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     borderRadius: Radius.md,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: Colors.light.backgroundElement,
   },
@@ -559,42 +478,42 @@ const styles = StyleSheet.create({
   filterText: {
     fontFamily: Fonts.button,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.light.textSecondary,
   },
   activeFilterText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   markAllButton: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.one,
-    marginLeft: 'auto',
+    marginLeft: "auto",
   },
   markAllText: {
     fontFamily: Fonts.button,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.light.secondary,
   },
   listContent: {
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
-    paddingBottom: 120,
-    width: '100%',
+    paddingBottom: Spacing.four,
+    width: "100%",
     maxWidth: 800,
-    alignSelf: 'center',
+    alignSelf: "center",
     flexGrow: 1,
   },
   emptyListContent: {
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   notificationCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: Spacing.three,
     padding: Spacing.three,
     marginBottom: Spacing.two,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.light.backgroundElement,
@@ -607,24 +526,24 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.light.background,
   },
   notificationContent: {
     flex: 1,
   },
   notificationHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: Spacing.two,
   },
   notificationTitle: {
     flex: 1,
     fontFamily: Fonts.button,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.light.text,
   },
   unreadDot: {
@@ -647,13 +566,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   rowLoader: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginTop: Spacing.two,
   },
   centerState: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.two,
   },
   stateText: {
@@ -662,7 +581,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.six,
   },
@@ -670,56 +589,26 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: Colors.light.backgroundElement,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: Spacing.three,
   },
   emptyTitle: {
     fontFamily: Fonts.heading,
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.light.text,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyDescription: {
     fontFamily: Fonts.body,
     fontSize: 14,
     lineHeight: 21,
     color: Colors.light.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: Spacing.two,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.backgroundElement,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.four,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
-    paddingVertical: Spacing.one,
-  },
-  navLabel: {
-    fontFamily: Fonts.navigation,
-    fontSize: 10,
-    color: Colors.light.textSecondary,
-  },
-  activeNavLabel: {
-    color: Colors.light.primary,
-    fontWeight: '700',
   },
 });

@@ -1,4 +1,3 @@
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
@@ -16,14 +15,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
 import { DONATION_STATUS, COLLECTIONS } from "@/constants/roles";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
@@ -61,6 +61,44 @@ type FieldProps = {
   hint?: string;
 };
 
+/**
+ * Accepts only real dates in YYYY-MM-DD format.
+ * Returns the date at 23:59 local time, preserving the existing
+ * collection deadline and expiry-date behaviour.
+ */
+function parseStrictDate(value: string): Date | null {
+  const trimmed = value.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const [year, month, day] = trimmed.split("-").map(Number);
+
+  if (
+    year < 1000 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day, 23, 59, 0, 0);
+
+  // JavaScript normalizes impossible dates, so compare the components.
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
 function FormField({
   label,
   placeholder,
@@ -73,6 +111,7 @@ function FormField({
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
+
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -82,8 +121,11 @@ function FormField({
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
         keyboardType={keyboardType}
-        autoCapitalize={keyboardType === "default" ? "sentences" : "none"}
+        autoCapitalize={
+          keyboardType === "default" ? "sentences" : "none"
+        }
       />
+
       {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
     </View>
   );
@@ -117,7 +159,9 @@ export default function CreateDonationScreen() {
   };
 
   const handlePickImage = async () => {
-    if (uploadingImage || saving) return;
+    if (uploadingImage || saving) {
+      return;
+    }
 
     try {
       setUploadingImage(true);
@@ -130,6 +174,7 @@ export default function CreateDonationScreen() {
       }
     } catch (error) {
       console.error("Image upload failed:", error);
+
       Alert.alert(
         "Image upload failed",
         "We couldn't upload your image. Please try again.",
@@ -144,7 +189,10 @@ export default function CreateDonationScreen() {
     const enterpriseId = currentUser?.uid ?? userId;
 
     if (!enterpriseId) {
-      Alert.alert("Sign in required", "Please sign in to create a donation.");
+      Alert.alert(
+        "Sign in required",
+        "Please sign in to create a donation.",
+      );
       router.replace("/Login" as never);
       return;
     }
@@ -153,13 +201,14 @@ export default function CreateDonationScreen() {
     const category = form.category.trim();
     const description = form.description.trim();
     const collectionLocation = form.collectionLocation.trim();
-    const quantity = Number(form.quantity);
+    const quantityInput = form.quantity.trim();
+    const quantity = Number(quantityInput);
 
     if (
       !foodName ||
       !category ||
       !description ||
-      !form.quantity.trim() ||
+      !quantityInput ||
       !collectionLocation ||
       !form.collectionDeadline.trim() ||
       !form.expiryDate.trim()
@@ -179,38 +228,29 @@ export default function CreateDonationScreen() {
       return;
     }
 
-    // Dates are entered as YYYY-MM-DD.
-    const collectionDeadline = new Date(
-      `${form.collectionDeadline.trim()}T23:59:00`,
-    );
-    const expiryDate = new Date(`${form.expiryDate.trim()}T23:59:00`);
+    const collectionDeadline = parseStrictDate(form.collectionDeadline);
+    const expiryDate = parseStrictDate(form.expiryDate);
 
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(form.collectionDeadline.trim()) ||
-      Number.isNaN(collectionDeadline.getTime())
-    ) {
+    if (!collectionDeadline) {
       Alert.alert(
         "Invalid collection deadline",
-        "Enter the collection deadline in YYYY-MM-DD format.",
+        "Enter a real calendar date in YYYY-MM-DD format, such as 2026-10-25.",
       );
       return;
     }
 
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(form.expiryDate.trim()) ||
-      Number.isNaN(expiryDate.getTime())
-    ) {
+    if (!expiryDate) {
       Alert.alert(
         "Invalid expiry date",
-        "Enter the expiry date in YYYY-MM-DD format.",
+        "Enter a real calendar date in YYYY-MM-DD format, such as 2026-10-25.",
       );
       return;
     }
 
-    if (expiryDate < collectionDeadline) {
+    if (expiryDate.getTime() < collectionDeadline.getTime()) {
       Alert.alert(
         "Check your dates",
-        "The expiry date should be on or after the collection deadline.",
+        "The expiry date must be on or after the collection deadline.",
       );
       return;
     }
@@ -235,6 +275,9 @@ export default function CreateDonationScreen() {
         createdTimestamp: serverTimestamp(),
       });
 
+      setForm(initialForm);
+      setImageUrl(null);
+
       Alert.alert(
         "Donation created",
         "Your food donation has been listed successfully.",
@@ -246,11 +289,9 @@ export default function CreateDonationScreen() {
           },
         ],
       );
-
-      setForm(initialForm);
-      setImageUrl(null);
     } catch (error) {
       console.error("Error creating donation:", error);
+
       Alert.alert(
         "Couldn't create donation",
         "Please check your connection and try again.",
@@ -260,11 +301,9 @@ export default function CreateDonationScreen() {
     }
   };
 
-  const goTo = (path: string) => router.push(path as never);
-
   if (authLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Checking your account...</Text>
@@ -275,7 +314,7 @@ export default function CreateDonationScreen() {
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Redirecting to sign in...</Text>
@@ -285,7 +324,15 @@ export default function CreateDonationScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Donations"
+        onActionPress={() =>
+          router.replace("/enterprises/donations" as never)
+        }
+      />
+
       <KeyboardAvoidingView
         style={styles.screen}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -296,23 +343,7 @@ export default function CreateDonationScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.workspace}>
-            <View style={styles.header}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Back to donations"
-                onPress={() =>
-                  router.replace("/enterprises/donations" as never)
-                }
-                style={styles.backButton}
-              >
-                <FontAwesome5
-                  name="arrow-left"
-                  size={16}
-                  color={colors.text}
-                  iconStyle="solid"
-                />
-              </Pressable>
-
+            <View style={styles.pageHeader}>
               <View style={styles.headerCopy}>
                 <Text style={styles.eyebrow}>YOUR ENTERPRISE</Text>
                 <Text style={styles.heading}>Create donation</Text>
@@ -333,7 +364,6 @@ export default function CreateDonationScreen() {
               use.
             </Text>
 
-            {/* Image upload */}
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Food image</Text>
               <Text style={styles.sectionDescription}>
@@ -347,11 +377,17 @@ export default function CreateDonationScreen() {
                     style={styles.imagePreview}
                     resizeMode="cover"
                   />
+
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel="Change donation image"
                     onPress={handlePickImage}
                     disabled={uploadingImage || saving}
-                    style={styles.changeImageButton}
+                    style={({ pressed }) => [
+                      styles.changeImageButton,
+                      pressed && styles.pressed,
+                      (uploadingImage || saving) && styles.disabledButton,
+                    ]}
                   >
                     <FontAwesome5
                       name="camera"
@@ -371,6 +407,7 @@ export default function CreateDonationScreen() {
                   style={({ pressed }) => [
                     styles.uploadArea,
                     pressed && styles.pressed,
+                    (uploadingImage || saving) && styles.disabledButton,
                   ]}
                 >
                   {uploadingImage ? (
@@ -405,7 +442,6 @@ export default function CreateDonationScreen() {
               ) : null}
             </View>
 
-            {/* Food details */}
             <View style={styles.card}>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.sectionIcon}>
@@ -416,6 +452,7 @@ export default function CreateDonationScreen() {
                     iconStyle="solid"
                   />
                 </View>
+
                 <View style={styles.sectionHeadingCopy}>
                   <Text style={styles.sectionTitle}>Food details</Text>
                   <Text style={styles.sectionDescription}>
@@ -458,7 +495,6 @@ export default function CreateDonationScreen() {
               />
             </View>
 
-            {/* Collection details */}
             <View style={styles.card}>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.sectionIcon}>
@@ -469,6 +505,7 @@ export default function CreateDonationScreen() {
                     iconStyle="solid"
                   />
                 </View>
+
                 <View style={styles.sectionHeadingCopy}>
                   <Text style={styles.sectionTitle}>Collection details</Text>
                   <Text style={styles.sectionDescription}>
@@ -506,7 +543,6 @@ export default function CreateDonationScreen() {
               />
             </View>
 
-            {/* Listing note */}
             <View style={styles.notice}>
               <FontAwesome5
                 name="info-circle"
@@ -540,6 +576,7 @@ export default function CreateDonationScreen() {
                   iconStyle="solid"
                 />
               )}
+
               <Text style={styles.submitButtonText}>
                 {saving ? "Creating donation..." : "Create donation"}
               </Text>
@@ -547,117 +584,20 @@ export default function CreateDonationScreen() {
 
             <Pressable
               accessibilityRole="button"
-              disabled={saving}
+              disabled={saving || uploadingImage}
               onPress={() =>
                 router.replace("/enterprises/donations" as never)
               }
-              style={styles.cancelButton}
+              style={({ pressed }) => [
+                styles.cancelButton,
+                pressed && styles.pressed,
+                (saving || uploadingImage) && styles.disabledButton,
+              ]}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </Pressable>
           </View>
         </ScrollView>
-
-        {/* Bottom navigation: consistent with the enterprise screens */}
-        <View style={styles.bottomNav}>
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Dashboard"
-            onPress={() => router.replace("/enterprises" as never)}
-          >
-            <FontAwesome5
-              name="home"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Home</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Donations"
-            onPress={() =>
-              router.replace("/enterprises/donations" as never)
-            }
-          >
-            <FontAwesome5
-              name="box-open"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Donations</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => goTo("/notifications")}
-          >
-            <FontAwesome5
-              name="bell"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Alerts</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Create donation"
-            onPress={() =>
-              router.replace("/enterprises/donations/create" as never)
-            }
-          >
-            <View style={styles.addNavButton}>
-              <FontAwesome5
-                name="plus"
-                size={18}
-                color="#FFFFFF"
-                iconStyle="solid"
-              />
-            </View>
-            <Text style={[styles.navLabel, styles.navLabelActive]}>
-              Add food
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Reservations"
-            onPress={() => goTo("/enterprises/reservations")}
-          >
-            <FontAwesome5
-              name="clipboard-list"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Collections</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-            onPress={() => goTo("/enterprises/profile")}
-          >
-            <FontAwesome5
-              name="user-circle"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Profile</Text>
-          </Pressable>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -684,20 +624,11 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     gap: Spacing.three,
   },
-  header: {
+  pageHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: Spacing.three,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: Radius.md,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
   },
   headerCopy: {
     flex: 1,
@@ -899,40 +830,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.textSecondary,
   },
-  bottomNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingTop: 9,
-    paddingBottom: 8,
-    paddingHorizontal: 2,
-    borderTopWidth: 1,
-    borderTopColor: colors.backgroundElement,
-    backgroundColor: colors.background,
-  },
-  navItem: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  navLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 8,
-    color: colors.textSecondary,
-  },
-  navLabelActive: {
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  addNavButton: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 17,
-    backgroundColor: colors.primary,
+  disabledButton: {
+    opacity: 0.65,
   },
   loadingScreen: {
     flex: 1,

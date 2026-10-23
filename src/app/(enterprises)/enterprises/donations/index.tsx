@@ -1,13 +1,7 @@
-
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,9 +11,9 @@ import {
   Text,
   View,
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
 import { COLLECTIONS } from "@/constants/roles";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
@@ -101,10 +95,13 @@ export default function EnterpriseDonationsScreen() {
 
   useEffect(() => {
     let stopDonations: (() => void) | undefined;
+    let active = true;
 
     const stopAuth = onAuthStateChanged(auth, (user) => {
       stopDonations?.();
       stopDonations = undefined;
+
+      if (!active) return;
 
       if (!user) {
         setDonations([]);
@@ -124,36 +121,40 @@ export default function EnterpriseDonationsScreen() {
       stopDonations = onSnapshot(
         donationsQuery,
         (snapshot) => {
+          if (!active) return;
+
           const records = snapshot.docs.map((item) => ({
             ...item.data(),
             id: item.id,
           })) as Donation[];
 
-          records.sort((a, b) => {
-            const getTime = (value: unknown) => {
-              if (
-                typeof value === "object" &&
-                value !== null &&
-                "toDate" in value &&
-                typeof value.toDate === "function"
-              ) {
-                return value.toDate().getTime();
-              }
+          const getTime = (value: unknown): number => {
+            if (
+              typeof value === "object" &&
+              value !== null &&
+              "toDate" in value &&
+              typeof value.toDate === "function"
+            ) {
+              return value.toDate().getTime();
+            }
 
-              return 0;
-            };
+            if (value instanceof Date) return value.getTime();
 
-            return (
-              getTime(b.createdTimestamp) -
-              getTime(a.createdTimestamp)
-            );
-          });
+            return 0;
+          };
+
+          records.sort(
+            (a, b) => getTime(b.createdTimestamp) - getTime(a.createdTimestamp),
+          );
 
           setDonations(records);
           setLoading(false);
+          setError("");
         },
         (err) => {
           console.error("Error loading donations:", err);
+          if (!active) return;
+
           setError("We couldn't load your donations. Please try again.");
           setLoading(false);
         },
@@ -161,6 +162,7 @@ export default function EnterpriseDonationsScreen() {
     });
 
     return () => {
+      active = false;
       stopAuth();
       stopDonations?.();
     };
@@ -174,28 +176,20 @@ export default function EnterpriseDonationsScreen() {
   const goTo = (path: string) => router.push(path as never);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.workspace}>
-            <View style={styles.header}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Back to dashboard"
-                onPress={() => router.replace("/enterprises" as never)}
-                style={styles.backButton}
-              >
-                <FontAwesome5
-                  name="arrow-left"
-                  size={16}
-                  color={colors.text}
-                  iconStyle="solid"
-                />
-              </Pressable>
+            <BrandHeader
+              role="ENTERPRISE"
+              actionLabel="Home"
+              onActionPress={() => router.replace("/enterprises" as never)}
+            />
 
+            <View style={styles.pageHeader}>
               <View style={styles.headerCopy}>
                 <Text style={styles.eyebrow}>YOUR ENTERPRISE</Text>
                 <Text style={styles.heading}>Donations</Text>
@@ -205,7 +199,10 @@ export default function EnterpriseDonationsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Create donation"
                 onPress={() => goTo("/enterprises/donations/create")}
-                style={styles.addButton}
+                style={({ pressed }) => [
+                  styles.addButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <FontAwesome5
                   name="plus"
@@ -248,14 +245,24 @@ export default function EnterpriseDonationsScreen() {
               >
                 {filters.map((item) => {
                   const active = filter === item.value;
+                  const count =
+                    item.value === "all"
+                      ? donations.length
+                      : donations.filter(
+                          (donation) =>
+                            donation.status?.toLowerCase() === item.value,
+                        ).length;
 
                   return (
                     <Pressable
                       key={item.value}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
                       onPress={() => setFilter(item.value)}
-                      style={[
+                      style={({ pressed }) => [
                         styles.filterButton,
                         active && styles.filterButtonActive,
+                        pressed && styles.pressed,
                       ]}
                     >
                       <Text
@@ -264,16 +271,7 @@ export default function EnterpriseDonationsScreen() {
                           active && styles.filterTextActive,
                         ]}
                       >
-                        {item.label}
-                        {item.value === "all"
-                          ? ` (${donations.length})`
-                          : ` (${
-                              donations.filter(
-                                (donation) =>
-                                  donation.status?.toLowerCase() ===
-                                  item.value,
-                              ).length
-                            })`}
+                        {item.label} ({count})
                       </Text>
                     </Pressable>
                   );
@@ -297,6 +295,16 @@ export default function EnterpriseDonationsScreen() {
                   iconStyle="solid"
                 />
                 <Text style={styles.feedbackText}>{error}</Text>
+                <Pressable
+                  onPress={() => {
+                    setError("");
+                    setLoading(true);
+                    router.replace("/enterprises/donations" as never);
+                  }}
+                  style={styles.primaryButton}
+                >
+                  <Text style={styles.primaryButtonText}>Try again</Text>
+                </Pressable>
               </View>
             ) : visibleDonations.length === 0 ? (
               <View style={styles.emptyCard}>
@@ -321,10 +329,11 @@ export default function EnterpriseDonationsScreen() {
 
                 {donations.length === 0 ? (
                   <Pressable
-                    onPress={() =>
-                      goTo("/enterprises/donations/create")
-                    }
-                    style={styles.primaryButton}
+                    onPress={() => goTo("/enterprises/donations/create")}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      pressed && styles.pressed,
+                    ]}
                   >
                     <Text style={styles.primaryButtonText}>
                       Create a donation
@@ -340,6 +349,8 @@ export default function EnterpriseDonationsScreen() {
                   return (
                     <Pressable
                       key={donation.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${donation.foodName || "donation"} details`}
                       onPress={() =>
                         goTo(`/enterprises/donations/${donation.id}`)
                       }
@@ -359,10 +370,7 @@ export default function EnterpriseDonationsScreen() {
 
                       <View style={styles.donationContent}>
                         <View style={styles.donationTop}>
-                          <Text
-                            style={styles.foodName}
-                            numberOfLines={2}
-                          >
+                          <Text style={styles.foodName} numberOfLines={2}>
                             {donation.foodName || "Untitled donation"}
                           </Text>
 
@@ -373,10 +381,7 @@ export default function EnterpriseDonationsScreen() {
                             ]}
                           >
                             <Text
-                              style={[
-                                styles.statusText,
-                                { color: badge.text },
-                              ]}
+                              style={[styles.statusText, { color: badge.text }]}
                             >
                               {donation.status || "Unknown"}
                             </Text>
@@ -391,10 +396,7 @@ export default function EnterpriseDonationsScreen() {
                         </Text>
 
                         {donation.description ? (
-                          <Text
-                            style={styles.description}
-                            numberOfLines={2}
-                          >
+                          <Text style={styles.description} numberOfLines={2}>
                             {donation.description}
                           </Text>
                         ) : null}
@@ -407,10 +409,7 @@ export default function EnterpriseDonationsScreen() {
                               color={colors.textSecondary}
                               iconStyle="solid"
                             />
-                            <Text
-                              style={styles.metaText}
-                              numberOfLines={1}
-                            >
+                            <Text style={styles.metaText} numberOfLines={1}>
                               {donation.collectionLocation}
                             </Text>
                           </View>
@@ -430,9 +429,7 @@ export default function EnterpriseDonationsScreen() {
                         </View>
 
                         <View style={styles.cardFooter}>
-                          <Text style={styles.detailsText}>
-                            View details
-                          </Text>
+                          <Text style={styles.detailsText}>View details</Text>
                           <FontAwesome5
                             name="arrow-right"
                             size={12}
@@ -448,103 +445,6 @@ export default function EnterpriseDonationsScreen() {
             )}
           </View>
         </ScrollView>
-
-        {/* Bottom navigation */}
-        <View style={styles.bottomNav}>
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Dashboard"
-            onPress={() => router.replace("/enterprises" as never)}
-          >
-            <FontAwesome5
-              name="home"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Home</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Donations"
-            onPress={() => router.replace("/enterprises/donations" as never)}
-          >
-            <FontAwesome5
-              name="box-open"
-              size={19}
-              color={colors.primary}
-              iconStyle="solid"
-            />
-            <Text style={[styles.navLabel, styles.navLabelActive]}>
-              Donations
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => goTo("/notifications")}
-          >
-            <FontAwesome5
-              name="bell"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Alerts</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Create donation"
-            onPress={() => goTo("/enterprises/donations/create")}
-          >
-            <View style={styles.addNavButton}>
-              <FontAwesome5
-                name="plus"
-                size={18}
-                color="#FFFFFF"
-                iconStyle="solid"
-              />
-            </View>
-            <Text style={styles.navLabel}>Add food</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Reservations"
-            onPress={() => goTo("/enterprises/reservations")}
-          >
-            <FontAwesome5
-              name="clipboard-list"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Collections</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-            onPress={() => goTo("/enterprises/profile")}
-          >
-            <FontAwesome5
-              name="user-circle"
-              size={19}
-              color={colors.textSecondary}
-              iconStyle="solid"
-            />
-            <Text style={styles.navLabel}>Profile</Text>
-          </Pressable>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -571,20 +471,10 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     gap: Spacing.three,
   },
-  header: {
+  pageHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: Radius.md,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
   },
   headerCopy: {
     flex: 1,
@@ -831,41 +721,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: colors.primary,
-  },
-  bottomNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingTop: 9,
-    paddingBottom: 8,
-    paddingHorizontal: 2,
-    borderTopWidth: 1,
-    borderTopColor: colors.backgroundElement,
-    backgroundColor: colors.background,
-  },
-  navItem: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  navLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 8,
-    color: colors.textSecondary,
-  },
-  navLabelActive: {
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  addNavButton: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 17,
-    backgroundColor: colors.primary,
   },
   pressed: {
     opacity: 0.72,
