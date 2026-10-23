@@ -1,10 +1,16 @@
 /**
  * Donation Service
  *
- * Handles all Firestore operations related to donations.
+ * Handles Firestore operations related to food donations.
+ * Centralises donation creation, retrieval, updates, status changes,
+ * and deletion so that screens can reuse the same data operations.
  *
- * Collection:
- * Donations
+ * Responsibilities:
+ * - Creates donation documents with creation and update timestamps.
+ * - Retrieves all donation documents and includes each document ID.
+ * - Updates donation fields and refreshes updatedTimestamp.
+ * - Marks donations as reserved, collected, cancelled, or expired.
+ * - Deletes donation documents when requested.
  */
 
 import {
@@ -13,38 +19,28 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
 import { DONATION_STATUS } from "../constants/roles";
-import { Donation } from "../types/Donation";
+import type { Donation } from "../types/Donation";
 
-/**
- * Creates a new donation record.
- *
- * Used by Food Enterprises when
- * submitting surplus food.
- */
-export const createDonation = async (
-  donation: Donation
-) => {
-  return await addDoc(
-    collection(db, "Donations"),
-    donation
-  );
+const DONATIONS_COLLECTION = "Donations";
+
+/** Create a donation. */
+export const createDonation = async (donation: Donation) => {
+  return addDoc(collection(db, DONATIONS_COLLECTION), {
+    ...donation,
+    createdTimestamp: serverTimestamp(),
+    updatedTimestamp: serverTimestamp(),
+  });
 };
 
-/**
- * Retrieves all donations from Firestore.
- *
- * Used by NGO users to browse
- * available donations.
- */
+/** Retrieve all donations. */
 export const getDonations = async () => {
-  const snapshot = await getDocs(
-    collection(db, "Donations")
-  );
+  const snapshot = await getDocs(collection(db, DONATIONS_COLLECTION));
 
   return snapshot.docs.map((document) => ({
     id: document.id,
@@ -52,139 +48,44 @@ export const getDonations = async () => {
   }));
 };
 
-/**
- * Updates donation information.
- *
- * Used when donation details
- * need to be modified.
- */
+/** Update donation details. */
 export const updateDonation = async (
   donationId: string,
-  data: Partial<Donation>
+  data: Partial<Donation>,
 ) => {
-  const donationRef = doc(
-    db,
-    "Donations",
-    donationId
-  );
-
-  return await updateDoc(
-    donationRef,
-    data
-  );
+  return updateDoc(doc(db, DONATIONS_COLLECTION, donationId), {
+    ...data,
+    updatedTimestamp: serverTimestamp(),
+  });
 };
 
-/**
- * Marks a donation as Reserved.
- *
- * Called when an NGO reserves
- * a donation.
- */
-export const reserveDonation = async (
-  donationId: string
+/** Shared helper for donation status changes. */
+const updateDonationStatus = async (
+  donationId: string,
+  status: Donation["status"],
 ) => {
-  const donationRef = doc(
-    db,
-    "Donations",
-    donationId
-  );
-
-  return await updateDoc(
-    donationRef,
-    {
-      status:
-        DONATION_STATUS.RESERVED,
-    }
-  );
+  return updateDoc(doc(db, DONATIONS_COLLECTION, donationId), {
+    status,
+    updatedTimestamp: serverTimestamp(),
+  });
 };
 
-/**
- * Marks a donation as Collected.
- *
- * Used after successful collection.
- */
-export const collectDonation = async (
-  donationId: string
-) => {
-  const donationRef = doc(
-    db,
-    "Donations",
-    donationId
-  );
+/** Mark a donation as reserved. */
+export const reserveDonation = async (donationId: string) =>
+  updateDonationStatus(donationId, DONATION_STATUS.RESERVED);
 
-  return await updateDoc(
-    donationRef,
-    {
-      status:
-        DONATION_STATUS.COLLECTED,
-    }
-  );
-};
+/** Mark a donation as collected. */
+export const collectDonation = async (donationId: string) =>
+  updateDonationStatus(donationId, DONATION_STATUS.COLLECTED);
 
-/**
- * Marks a donation as Cancelled.
- *
- * Donation remains in Firestore
- * for audit and testing purposes.
- */
-export const cancelDonation = async (
-  donationId: string
-) => {
-  const donationRef = doc(
-    db,
-    "Donations",
-    donationId
-  );
+/** Mark a donation as cancelled. */
+export const cancelDonation = async (donationId: string) =>
+  updateDonationStatus(donationId, DONATION_STATUS.CANCELLED);
 
-  return await updateDoc(
-    donationRef,
-    {
-      status:
-        DONATION_STATUS.CANCELLED,
-    }
-  );
-};
+/** Mark a donation as expired. */
+export const expireDonation = async (donationId: string) =>
+  updateDonationStatus(donationId, DONATION_STATUS.EXPIRED);
 
-/**
- * Marks a donation as Expired.
- *
- * Used when collection deadline
- * has passed.
- */
-export const expireDonation = async (
-  donationId: string
-) => {
-  const donationRef = doc(
-    db,
-    "Donations",
-    donationId
-  );
-
-  return await updateDoc(
-    donationRef,
-    {
-      status:
-        DONATION_STATUS.EXPIRED,
-    }
-  );
-};
-
-/**
- * Permanently removes a donation.
- *
- * Mainly used for administration
- * and testing purposes.
- */
-export const deleteDonation = async (
-  donationId: string
-) => {
-  const donationRef = doc(
-    db,
-    "Donations",
-    donationId
-  );
-
-  return await deleteDoc(
-    donationRef
-  );
-};
+/** Permanently delete a donation. */
+export const deleteDonation = async (donationId: string) =>
+  deleteDoc(doc(db, DONATIONS_COLLECTION, donationId));

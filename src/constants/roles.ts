@@ -1,3 +1,31 @@
+/**
+ * Application Roles, Statuses, and Collection Names
+ *
+ * Defines shared constants and TypeScript types used to represent
+ * user roles, account statuses, NGO verification statuses, donation
+ * statuses, and reservation statuses.
+ *
+ * Responsibilities:
+ * - Defines enterprise, NGO, and admin roles.
+ * - Defines active and suspended account statuses.
+ * - Defines pending, approved, and rejected NGO statuses.
+ * - Defines the supported donation lifecycle statuses.
+ * - Defines the supported reservation lifecycle statuses.
+ * - Centralises Firestore collection names used across the application.
+ *
+ * Shared Values:
+ * - ROLES
+ * - ACCOUNT_STATUS
+ * - NGO_STATUS
+ * - DONATION_STATUS
+ * - RESERVATION_STATUS
+ * - COLLECTIONS
+ *
+ * Purpose:
+ * - Reduces inconsistent spelling of roles, statuses, and collection names.
+ * - Helps keep Firestore operations and UI logic consistent.
+ */
+
 // Shared values used by BOTH the frontend and backend.
 // Always import from here. Never type these strings by hand.
 
