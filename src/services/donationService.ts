@@ -14,7 +14,7 @@
  */
 
 import { auth, db } from "@/config/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 
 export interface CreateDonationInput {
   title: string;
@@ -53,4 +53,18 @@ export async function createDonation(data: CreateDonationInput): Promise<string>
   });
 
   return docRef.id;
+}
+
+/**
+ *  Retrieves all donation from Firestore and 
+ * includes each document's ID so NGO screen can identify it
+ */
+export async function getDonations() {
+  const donationsRef = collection(db, "donations");
+  const snapshot = await getDocs(donationsRef);
+
+  return snapshot.docs.map((document) => ({
+    id: document.id,
+    ...document.data(),
+  }));
 }

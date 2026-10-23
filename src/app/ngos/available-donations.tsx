@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   SafeAreaView,
   Text,
   TouchableOpacity,
@@ -94,19 +95,22 @@ export default function AvailableDonations() {
   /**
    * Opens the selected donation's details.
    * Existing navigation parameters are preserved.
+   * Supports both the older and current donation field names.
    */
   const openDonation = (item: any) => {
     router.push({
       pathname: "/ngos/donation-details",
       params: {
         documentId: item.id,
-        donationId: item.donationId,
-        enterpriseId: item.enterpriseId,
-        foodName: item.foodName,
-        category: item.category,
-        description: item.description,
-        quantity: item.quantity?.toString(),
-        collectionLocation: item.collectionLocation,
+        donationId: item.donationId || item.id,
+        enterpriseId: item.enterpriseId || "",
+        foodName: item.foodName || item.title || "Food donation",
+        category: item.category || "",
+        description: item.description || "",
+        quantity: item.quantity?.toString() || "",
+        collectionLocation:
+          item.collectionLocation || item.pickupAddress || "",
+        imageUrl: item.imageUrl || "",
         status:
           item.status as (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS],
       },
@@ -205,11 +209,32 @@ export default function AvailableDonations() {
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
+              {/* Donation photo */}
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.donationImage}
+                  resizeMode="cover"
+                  accessibilityLabel={`Photo of ${item.foodName || item.title || "food donation"}`}
+                />
+              ) : (
+                <View style={styles.donationImagePlaceholder}>
+                  <FontAwesome5
+                    name="utensils"
+                    size={28}
+                    color={Colors.light.secondary}
+                    iconStyle="solid"
+                  />
+
+                  <Text style={styles.detailLabel}>No photo available</Text>
+                </View>
+              )}
+
               {/* Food name and availability */}
               <View style={styles.cardHeader}>
                 <View style={styles.foodHeading}>
                   <Text style={styles.foodName}>
-                    {item.foodName || "Food donation"}
+                    {item.foodName || item.title || "Food donation"}
                   </Text>
 
                   {!!item.category && (
@@ -261,7 +286,9 @@ export default function AvailableDonations() {
                   <Text style={styles.detailLabel}>Collection location</Text>
 
                   <Text style={styles.detailValue}>
-                    {item.collectionLocation || "Not specified"}
+                    {item.collectionLocation ||
+                      item.pickupAddress ||
+                      "Not specified"}
                   </Text>
                 </View>
               </View>
@@ -272,7 +299,7 @@ export default function AvailableDonations() {
                 activeOpacity={0.8}
                 onPress={() => openDonation(item)}
                 accessibilityRole="button"
-                accessibilityLabel={`View details for ${item.foodName || "food donation"}`}
+                accessibilityLabel={`View details for ${item.foodName || item.title || "food donation"}`}
               >
                 <Text style={styles.buttonText}>View donation details</Text>
 

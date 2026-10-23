@@ -98,7 +98,7 @@ export default function Login() {
           router.replace("/NGOWelcome");
         } else if (verificationStatus === NGO_STATUS.APPROVED) {
           await playTruckAnimation();
-          router.replace("/ngo-dashboard");
+          router.replace("/ngos/ngo-dashboard");
         } else if (verificationStatus === NGO_STATUS.REJECTED) {
           await logoutUser();
           setError(

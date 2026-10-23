@@ -8,8 +8,8 @@
  * - Consistent use of theme colors, fonts, and spacing
  */
 
-import { StyleSheet, Platform } from "react-native";
-import { Colors, Fonts, Radius, Spacing } from "../constants/theme";
+import { Platform, StyleSheet } from "react-native";
+import { Colors, Fonts, Spacing } from "../constants/theme";
 
 export const styles = StyleSheet.create({
   safeArea: {
@@ -152,6 +152,26 @@ export const styles = StyleSheet.create({
     gap: Spacing.two,
   },
 
+   /* Donation image */
+
+  donationImage: {
+    width: "100%",
+    height: 190,
+    borderRadius: 12,
+    backgroundColor: "#F0EDE7",
+    marginBottom: Spacing.three,
+  },
+
+  donationImagePlaceholder: {
+    width: "100%",
+    height: 190,
+    borderRadius: 12,
+    backgroundColor: "#F0EDE7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.three,
+  },
+  
   foodHeading: {
     flex: 1,
     minWidth: 0,
