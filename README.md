@@ -70,7 +70,7 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 
 ## Demo Video
 
-▶️ **Watch the demo:** [ADD DEMO VIDEO LINK HERE]
+▶️ **Watch the demo:** https://drive.google.com/file/d/1dcibjXBjCTQoUnIBdm4NdbFuIeS15OCE/view
 
 The demo walks through the full flow: a food enterprise registers and creates a donation, an admin approves an NGO, the NGO reserves the donation, and the enterprise sees the updated status.
 
