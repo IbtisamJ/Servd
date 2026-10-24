@@ -1,3 +1,4 @@
+
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
@@ -11,7 +12,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
@@ -20,6 +20,7 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 
 const colors = Colors.light;
 
+// Describes the donation fields this screen reads from Firestore.
 type Donation = {
   id: string;
   foodName?: string;
@@ -33,6 +34,7 @@ type Donation = {
   createdTimestamp?: unknown;
 };
 
+// Defines the supported listing filters.
 type Filter = "all" | "available" | "reserved" | "collected";
 
 const filters: { label: string; value: Filter }[] = [
@@ -42,6 +44,7 @@ const filters: { label: string; value: Filter }[] = [
   { label: "Collected", value: "collected" },
 ];
 
+// Converts Firestore timestamps and standard dates into readable text.
 function formatDate(value: unknown): string {
   if (!value) return "Date unavailable";
 
@@ -71,6 +74,7 @@ function formatDate(value: unknown): string {
   });
 }
 
+// Gives each donation status a distinct badge colour.
 function statusColors(status?: string) {
   switch (status?.toLowerCase()) {
     case "available":
@@ -93,11 +97,13 @@ export default function EnterpriseDonationsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Listens for authentication changes and live donation updates.
   useEffect(() => {
     let stopDonations: (() => void) | undefined;
     let active = true;
 
     const stopAuth = onAuthStateChanged(auth, (user) => {
+      // Stop the previous user's donation listener before switching accounts.
       stopDonations?.();
       stopDonations = undefined;
 
@@ -113,6 +119,7 @@ export default function EnterpriseDonationsScreen() {
       setLoading(true);
       setError("");
 
+      // Only retrieve donations created by the signed-in enterprise.
       const donationsQuery = query(
         collection(db, COLLECTIONS.DONATIONS),
         where("enterpriseId", "==", user.uid),
@@ -128,6 +135,7 @@ export default function EnterpriseDonationsScreen() {
             id: item.id,
           })) as Donation[];
 
+          // Sort newest donations first when a Firestore timestamp is present.
           const getTime = (value: unknown): number => {
             if (
               typeof value === "object" &&
@@ -144,7 +152,8 @@ export default function EnterpriseDonationsScreen() {
           };
 
           records.sort(
-            (a, b) => getTime(b.createdTimestamp) - getTime(a.createdTimestamp),
+            (a, b) =>
+              getTime(b.createdTimestamp) - getTime(a.createdTimestamp),
           );
 
           setDonations(records);
@@ -161,6 +170,7 @@ export default function EnterpriseDonationsScreen() {
       );
     });
 
+    // Clean up both listeners when this screen unmounts.
     return () => {
       active = false;
       stopAuth();
@@ -168,293 +178,301 @@ export default function EnterpriseDonationsScreen() {
     };
   }, []);
 
+  // Apply the selected status filter without changing the underlying records.
   const visibleDonations = donations.filter((donation) => {
     if (filter === "all") return true;
     return donation.status?.toLowerCase() === filter;
   });
 
+  // Keep navigation actions consistent across this screen.
   const goTo = (path: string) => router.push(path as never);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.screen}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.workspace}>
-            <BrandHeader
-              role="ENTERPRISE"
-              actionLabel="Home"
-              onActionPress={() => router.replace("/enterprises" as never)}
-            />
+    // The parent layout owns the top safe area, so this screen does not add
+    // another SafeAreaView or duplicate the top inset.
+    <View style={styles.screen}>
+      {/* Keep the branding header outside the ScrollView so it stays in place. */}
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Home"
+        onActionPress={() => router.replace("/enterprises" as never)}
+      />
 
-            <View style={styles.pageHeader}>
-              <View style={styles.headerCopy}>
-                <Text style={styles.eyebrow}>YOUR ENTERPRISE</Text>
-                <Text style={styles.heading}>Donations</Text>
-              </View>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Create donation"
-                onPress={() => goTo("/enterprises/donations/create")}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <FontAwesome5
-                  name="plus"
-                  size={17}
-                  color="#FFFFFF"
-                  iconStyle="solid"
-                />
-              </Pressable>
+      {/* Only the donations page content scrolls. */}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.workspace}>
+          {/* Page title and shortcut for creating a new donation. */}
+          <View style={styles.pageHeader}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.eyebrow}>YOUR ENTERPRISE</Text>
+              <Text style={styles.heading}>Donations</Text>
             </View>
 
-            <Text style={styles.subtitle}>
-              Manage your food listings and keep track of their status.
-            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Create donation"
+              onPress={() => goTo("/enterprises/donations/create")}
+              style={({ pressed }) => [
+                styles.addButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <FontAwesome5
+                name="plus"
+                size={17}
+                color="#FFFFFF"
+                iconStyle="solid"
+              />
+            </Pressable>
+          </View>
 
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryIcon}>
+          <Text style={styles.subtitle}>
+            Manage your food listings and keep track of their status.
+          </Text>
+
+          {/* Summary card showing the total number of enterprise donations. */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryIcon}>
+              <FontAwesome5
+                name="box-open"
+                size={22}
+                color={colors.secondary}
+                iconStyle="solid"
+              />
+            </View>
+            <View style={styles.summaryCopy}>
+              <Text style={styles.summaryLabel}>Total donations</Text>
+              <Text style={styles.summaryValue}>
+                {loading ? "—" : donations.length}
+              </Text>
+            </View>
+            <Text style={styles.summaryNote}>Your listings</Text>
+          </View>
+
+          {/* Filter buttons show all donations or a particular status. */}
+          <View style={styles.filterSection}>
+            <Text style={styles.sectionTitle}>Your listings</Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {filters.map((item) => {
+                const active = filter === item.value;
+                const count =
+                  item.value === "all"
+                    ? donations.length
+                    : donations.filter(
+                        (donation) =>
+                          donation.status?.toLowerCase() === item.value,
+                      ).length;
+
+                return (
+                  <Pressable
+                    key={item.value}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => setFilter(item.value)}
+                    style={({ pressed }) => [
+                      styles.filterButton,
+                      active && styles.filterButtonActive,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterText,
+                        active && styles.filterTextActive,
+                      ]}
+                    >
+                      {item.label} ({count})
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Show a loading indicator while the live listener retrieves records. */}
+          {loading ? (
+            <View style={styles.feedbackCard}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.feedbackText}>
+                Loading your donations...
+              </Text>
+            </View>
+          ) : error ? (
+            // Display an error message if Firestore cannot load the records.
+            <View style={styles.feedbackCard}>
+              <FontAwesome5
+                name="exclamation-circle"
+                size={24}
+                color={colors.error}
+                iconStyle="solid"
+              />
+              <Text style={styles.feedbackText}>{error}</Text>
+              <Pressable
+                onPress={() => {
+                  setError("");
+                  setLoading(true);
+                  router.replace("/enterprises/donations" as never);
+                }}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonText}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : visibleDonations.length === 0 ? (
+            // Explain whether the enterprise has no donations or the filter is empty.
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIcon}>
                 <FontAwesome5
                   name="box-open"
-                  size={22}
+                  size={27}
                   color={colors.secondary}
                   iconStyle="solid"
                 />
               </View>
-              <View style={styles.summaryCopy}>
-                <Text style={styles.summaryLabel}>Total donations</Text>
-                <Text style={styles.summaryValue}>
-                  {loading ? "—" : donations.length}
-                </Text>
-              </View>
-              <Text style={styles.summaryNote}>Your listings</Text>
-            </View>
+              <Text style={styles.emptyTitle}>
+                {donations.length === 0
+                  ? "No donations yet"
+                  : "No donations in this category"}
+              </Text>
+              <Text style={styles.emptyText}>
+                {donations.length === 0
+                  ? "Your food listings will appear here after you create your first donation."
+                  : "Try another filter to see your other listings."}
+              </Text>
 
-            <View style={styles.filterSection}>
-              <Text style={styles.sectionTitle}>Your listings</Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterRow}
-              >
-                {filters.map((item) => {
-                  const active = filter === item.value;
-                  const count =
-                    item.value === "all"
-                      ? donations.length
-                      : donations.filter(
-                          (donation) =>
-                            donation.status?.toLowerCase() === item.value,
-                        ).length;
-
-                  return (
-                    <Pressable
-                      key={item.value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      onPress={() => setFilter(item.value)}
-                      style={({ pressed }) => [
-                        styles.filterButton,
-                        active && styles.filterButtonActive,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.filterText,
-                          active && styles.filterTextActive,
-                        ]}
-                      >
-                        {item.label} ({count})
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {loading ? (
-              <View style={styles.feedbackCard}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.feedbackText}>
-                  Loading your donations...
-                </Text>
-              </View>
-            ) : error ? (
-              <View style={styles.feedbackCard}>
-                <FontAwesome5
-                  name="exclamation-circle"
-                  size={24}
-                  color={colors.error}
-                  iconStyle="solid"
-                />
-                <Text style={styles.feedbackText}>{error}</Text>
+              {donations.length === 0 ? (
                 <Pressable
-                  onPress={() => {
-                    setError("");
-                    setLoading(true);
-                    router.replace("/enterprises/donations" as never);
-                  }}
-                  style={styles.primaryButton}
+                  onPress={() => goTo("/enterprises/donations/create")}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  <Text style={styles.primaryButtonText}>Try again</Text>
+                  <Text style={styles.primaryButtonText}>
+                    Create a donation
+                  </Text>
                 </Pressable>
-              </View>
-            ) : visibleDonations.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
-                  <FontAwesome5
-                    name="box-open"
-                    size={27}
-                    color={colors.secondary}
-                    iconStyle="solid"
-                  />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {donations.length === 0
-                    ? "No donations yet"
-                    : "No donations in this category"}
-                </Text>
-                <Text style={styles.emptyText}>
-                  {donations.length === 0
-                    ? "Your food listings will appear here after you create your first donation."
-                    : "Try another filter to see your other listings."}
-                </Text>
+              ) : null}
+            </View>
+          ) : (
+            // Render the filtered donation cards and their collection details.
+            <View style={styles.list}>
+              {visibleDonations.map((donation) => {
+                const badge = statusColors(donation.status);
 
-                {donations.length === 0 ? (
+                return (
                   <Pressable
-                    onPress={() => goTo("/enterprises/donations/create")}
+                    key={donation.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${donation.foodName || "donation"} details`}
+                    onPress={() =>
+                      goTo(`/enterprises/donations/${donation.id}`)
+                    }
                     style={({ pressed }) => [
-                      styles.primaryButton,
+                      styles.donationCard,
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={styles.primaryButtonText}>
-                      Create a donation
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.list}>
-                {visibleDonations.map((donation) => {
-                  const badge = statusColors(donation.status);
+                    <View style={styles.foodIcon}>
+                      <FontAwesome5
+                        name="utensils"
+                        size={19}
+                        color={colors.secondary}
+                        iconStyle="solid"
+                      />
+                    </View>
 
-                  return (
-                    <Pressable
-                      key={donation.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`View ${donation.foodName || "donation"} details`}
-                      onPress={() =>
-                        goTo(`/enterprises/donations/${donation.id}`)
-                      }
-                      style={({ pressed }) => [
-                        styles.donationCard,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <View style={styles.foodIcon}>
-                        <FontAwesome5
-                          name="utensils"
-                          size={19}
-                          color={colors.secondary}
-                          iconStyle="solid"
-                        />
-                      </View>
-
-                      <View style={styles.donationContent}>
-                        <View style={styles.donationTop}>
-                          <Text style={styles.foodName} numberOfLines={2}>
-                            {donation.foodName || "Untitled donation"}
-                          </Text>
-
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              { backgroundColor: badge.background },
-                            ]}
-                          >
-                            <Text
-                              style={[styles.statusText, { color: badge.text }]}
-                            >
-                              {donation.status || "Unknown"}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <Text style={styles.category}>
-                          {donation.category || "Food donation"}
-                          {donation.quantity != null
-                            ? ` · Quantity: ${donation.quantity}`
-                            : ""}
+                    <View style={styles.donationContent}>
+                      <View style={styles.donationTop}>
+                        <Text style={styles.foodName} numberOfLines={2}>
+                          {donation.foodName || "Untitled donation"}
                         </Text>
 
-                        {donation.description ? (
-                          <Text style={styles.description} numberOfLines={2}>
-                            {donation.description}
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: badge.background },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.statusText, { color: badge.text }]}
+                          >
+                            {donation.status || "Unknown"}
                           </Text>
-                        ) : null}
+                        </View>
+                      </View>
 
-                        {donation.collectionLocation ? (
-                          <View style={styles.metaRow}>
-                            <FontAwesome5
-                              name="map-marker-alt"
-                              size={12}
-                              color={colors.textSecondary}
-                              iconStyle="solid"
-                            />
-                            <Text style={styles.metaText} numberOfLines={1}>
-                              {donation.collectionLocation}
-                            </Text>
-                          </View>
-                        ) : null}
+                      <Text style={styles.category}>
+                        {donation.category || "Food donation"}
+                        {donation.quantity != null
+                          ? ` · Quantity: ${donation.quantity}`
+                          : ""}
+                      </Text>
 
+                      {donation.description ? (
+                        <Text style={styles.description} numberOfLines={2}>
+                          {donation.description}
+                        </Text>
+                      ) : null}
+
+                      {donation.collectionLocation ? (
                         <View style={styles.metaRow}>
                           <FontAwesome5
-                            name="calendar-alt"
+                            name="map-marker-alt"
                             size={12}
                             color={colors.textSecondary}
                             iconStyle="solid"
                           />
-                          <Text style={styles.metaText}>
-                            Collection deadline:{" "}
-                            {formatDate(donation.collectionDeadline)}
+                          <Text style={styles.metaText} numberOfLines={1}>
+                            {donation.collectionLocation}
                           </Text>
                         </View>
+                      ) : null}
 
-                        <View style={styles.cardFooter}>
-                          <Text style={styles.detailsText}>View details</Text>
-                          <FontAwesome5
-                            name="arrow-right"
-                            size={12}
-                            color={colors.primary}
-                            iconStyle="solid"
-                          />
-                        </View>
+                      <View style={styles.metaRow}>
+                        <FontAwesome5
+                          name="calendar-alt"
+                          size={12}
+                          color={colors.textSecondary}
+                          iconStyle="solid"
+                        />
+                        <Text style={styles.metaText}>
+                          Collection deadline:{" "}
+                          {formatDate(donation.collectionDeadline)}
+                        </Text>
                       </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+
+                      {/* Opens the selected donation's full details page. */}
+                      <View style={styles.cardFooter}>
+                        <Text style={styles.detailsText}>View details</Text>
+                        <FontAwesome5
+                          name="arrow-right"
+                          size={12}
+                          color={colors.primary}
+                          iconStyle="solid"
+                        />
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,

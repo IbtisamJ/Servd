@@ -16,24 +16,6 @@
  * - Marks the donation as collected when the reservation is collected.
  * - Returns success or error information for supported operations.
  */
-/**
- * Reservation Service
- *
- * Handles Firestore operations for creating and retrieving reservations
- * and updating reservation statuses. Uses Firestore transactions to
- * keep reservation and donation status changes consistent.
- *
- * Responsibilities:
- * - Retrieves reservation documents and includes their document IDs.
- * - Creates reservations for donations that are currently available.
- * - Updates the donation to reserved when a reservation is created.
- * - Prevents reservations for missing or unavailable donations.
- * - Marks active reservations as collected or cancelled.
- * - Updates the related donation in the same transaction.
- * - Makes the donation available again when a reservation is cancelled.
- * - Marks the donation as collected when the reservation is collected.
- * - Returns success or error information for supported operations.
- */
 
 import {
   collection,

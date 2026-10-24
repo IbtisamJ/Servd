@@ -1,3 +1,4 @@
+
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router, useLocalSearchParams } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
@@ -17,7 +18,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
@@ -51,6 +51,8 @@ type Donation = {
   createdTimestamp?: FirestoreDate | null;
 };
 
+// Converts a Firestore Timestamp or JavaScript Date into a valid Date.
+// Returns null when the value is missing or invalid.
 function toDate(value?: FirestoreDate | null): Date | null {
   if (!value) {
     return null;
@@ -70,6 +72,7 @@ function toDate(value?: FirestoreDate | null): Date | null {
   return date;
 }
 
+// Formats dates consistently for the donation details screen.
 function formatDate(value?: FirestoreDate | null): string {
   const date = toDate(value);
 
@@ -84,6 +87,7 @@ function formatDate(value?: FirestoreDate | null): string {
   });
 }
 
+// Returns the badge colours and label associated with each donation status.
 function getStatusStyle(status: string) {
   switch (status.toLowerCase()) {
     case DONATION_STATUS.AVAILABLE:
@@ -130,6 +134,7 @@ function getStatusStyle(status: string) {
   }
 }
 
+// Reusable row for displaying collection and donation information.
 function DetailRow({
   icon,
   label,
@@ -169,6 +174,7 @@ export default function DonationDetailsScreen() {
   const [authLoading, setAuthLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Listen for authentication changes and redirect signed-out users.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUserId(user?.uid ?? null);
@@ -182,6 +188,7 @@ export default function DonationDetailsScreen() {
     return unsubscribe;
   }, []);
 
+  // Load the donation in real time from Firestore.
   useEffect(() => {
     if (authLoading) {
       return;
@@ -209,7 +216,7 @@ export default function DonationDetailsScreen() {
 
         const data = snapshot.data() as Donation;
 
-        // Enterprises may only view their own donations.
+        // Enterprises may only view donations belonging to their own account.
         if (data.enterpriseId !== userId) {
           setDonation(null);
           setLoading(false);
@@ -233,6 +240,7 @@ export default function DonationDetailsScreen() {
     return unsubscribe;
   }, [id, userId, authLoading]);
 
+  // Update the donation status only when the signed-in enterprise owns it.
   const updateDonationStatus = async (
     nextStatus: (typeof DONATION_STATUS)[keyof typeof DONATION_STATUS],
   ) => {
@@ -269,6 +277,7 @@ export default function DonationDetailsScreen() {
     }
   };
 
+  // Ask for confirmation before cancelling an available donation.
   const confirmCancelDonation = () => {
     if (donation?.status !== DONATION_STATUS.AVAILABLE) {
       return;
@@ -292,9 +301,10 @@ export default function DonationDetailsScreen() {
     );
   };
 
+  // Show a loading state while authentication or donation data is being checked.
   if (authLoading || loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
         <BrandHeader
           role="ENTERPRISE"
           actionLabel="Donations"
@@ -307,26 +317,34 @@ export default function DonationDetailsScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.helperText}>Loading donation...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
+        <BrandHeader
+          role="ENTERPRISE"
+          actionLabel="Donations"
+          onActionPress={() =>
+            router.replace("/enterprises/donations" as never)
+          }
+        />
+
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.helperText}>
             Redirecting to sign in...
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!donation) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
         <BrandHeader
           role="ENTERPRISE"
           actionLabel="Donations"
@@ -364,7 +382,7 @@ export default function DonationDetailsScreen() {
             </Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -372,7 +390,7 @@ export default function DonationDetailsScreen() {
   const isAvailable = donation.status === DONATION_STATUS.AVAILABLE;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.container}>
       <BrandHeader
         role="ENTERPRISE"
         actionLabel="Donations"
@@ -565,12 +583,12 @@ export default function DonationDetailsScreen() {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: colors.background,
   },

@@ -1,12 +1,7 @@
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { router } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  doc,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
+import { collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -21,7 +16,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
@@ -75,13 +69,7 @@ function parseStrictDate(value: string): Date | null {
 
   const [year, month, day] = trimmed.split("-").map(Number);
 
-  if (
-    year < 1000 ||
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > 31
-  ) {
+  if (year < 1000 || month < 1 || month > 12 || day < 1 || day > 31) {
     return null;
   }
 
@@ -121,9 +109,7 @@ function FormField({
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
         keyboardType={keyboardType}
-        autoCapitalize={
-          keyboardType === "default" ? "sentences" : "none"
-        }
+        autoCapitalize={keyboardType === "default" ? "sentences" : "none"}
       />
 
       {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
@@ -189,10 +175,7 @@ export default function CreateDonationScreen() {
     const enterpriseId = currentUser?.uid ?? userId;
 
     if (!enterpriseId) {
-      Alert.alert(
-        "Sign in required",
-        "Please sign in to create a donation.",
-      );
+      Alert.alert("Sign in required", "Please sign in to create a donation.");
       router.replace("/Login" as never);
       return;
     }
@@ -221,10 +204,7 @@ export default function CreateDonationScreen() {
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      Alert.alert(
-        "Invalid quantity",
-        "Enter a quantity greater than zero.",
-      );
+      Alert.alert("Invalid quantity", "Enter a quantity greater than zero.");
       return;
     }
 
@@ -284,8 +264,7 @@ export default function CreateDonationScreen() {
         [
           {
             text: "View donations",
-            onPress: () =>
-              router.replace("/enterprises/donations" as never),
+            onPress: () => router.replace("/enterprises/donations" as never),
           },
         ],
       );
@@ -303,34 +282,32 @@ export default function CreateDonationScreen() {
 
   if (authLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Checking your account...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Redirecting to sign in...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.container}>
       <BrandHeader
         role="ENTERPRISE"
         actionLabel="Donations"
-        onActionPress={() =>
-          router.replace("/enterprises/donations" as never)
-        }
+        onActionPress={() => router.replace("/enterprises/donations" as never)}
       />
 
       <KeyboardAvoidingView
@@ -360,8 +337,7 @@ export default function CreateDonationScreen() {
             </View>
 
             <Text style={styles.subtitle}>
-              Share surplus food with organisations that can put it to good
-              use.
+              Share surplus food with organisations that can put it to good use.
             </Text>
 
             <View style={styles.card}>
@@ -411,10 +387,7 @@ export default function CreateDonationScreen() {
                   ]}
                 >
                   {uploadingImage ? (
-                    <ActivityIndicator
-                      size="large"
-                      color={colors.primary}
-                    />
+                    <ActivityIndicator size="large" color={colors.primary} />
                   ) : (
                     <View style={styles.uploadIcon}>
                       <FontAwesome5
@@ -585,9 +558,7 @@ export default function CreateDonationScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={saving || uploadingImage}
-              onPress={() =>
-                router.replace("/enterprises/donations" as never)
-              }
+              onPress={() => router.replace("/enterprises/donations" as never)}
               style={({ pressed }) => [
                 styles.cancelButton,
                 pressed && styles.pressed,
@@ -599,12 +570,12 @@ export default function CreateDonationScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: colors.background,
   },

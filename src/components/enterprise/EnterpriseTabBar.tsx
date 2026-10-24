@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome5 } from "@react-native-vector-icons/fontawesome5";
 import { router, usePathname } from "expo-router";
@@ -21,40 +16,25 @@ type TabItemProps = {
   onPress: () => void;
 };
 
-function TabItem({
-  label,
-  icon,
-  active = false,
-  onPress,
-}: TabItemProps) {
+function TabItem({ label, icon, active = false, onPress }: TabItemProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.tabItem,
-        pressed && styles.tabPressed,
-      ]}
+      style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
     >
       <FontAwesome5
         name={icon as never}
         size={19}
-        color={
-          active
-            ? Colors.light.primary
-            : Colors.light.textSecondary
-        }
+        color={active ? Colors.light.primary : Colors.light.textSecondary}
         iconStyle="solid"
       />
 
       <Text
         numberOfLines={1}
-        style={[
-          styles.tabLabel,
-          active && styles.activeTabLabel,
-        ]}
+        style={[styles.tabLabel, active && styles.activeTabLabel]}
       >
         {label}
       </Text>
@@ -69,17 +49,11 @@ export default function EnterpriseTabBar() {
   const [moreVisible, setMoreVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const isHome =
-    pathname === "/enterprises" ||
-    pathname === "/enterprises/";
+  const isHome = pathname === "/enterprises" || pathname === "/enterprises/";
 
-  const isDonations = pathname.startsWith(
-    "/enterprises/donations"
-  );
+  const isDonations = pathname.startsWith("/enterprises/donations");
 
-  const isBookings = pathname.startsWith(
-    "/enterprises/reservations"
-  );
+  const isCollections = pathname.startsWith("/enterprises/reservations");
 
   function navigate(path: string) {
     setMoreVisible(false);
@@ -104,10 +78,7 @@ export default function EnterpriseTabBar() {
 
   return (
     <>
-      <SafeAreaView
-        edges={["bottom"]}
-        style={styles.safeArea}
-      >
+      <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
         <View style={styles.bar}>
           <TabItem
             label="Home"
@@ -126,9 +97,7 @@ export default function EnterpriseTabBar() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add food donation"
-            onPress={() =>
-              navigate("/enterprises/donations/create")
-            }
+            onPress={() => navigate("/enterprises/donations/create")}
             style={({ pressed }) => [
               styles.addFoodItem,
               pressed && styles.addFoodPressed,
@@ -143,18 +112,14 @@ export default function EnterpriseTabBar() {
               />
             </View>
 
-            <Text style={styles.addFoodLabel}>
-              Add food
-            </Text>
+            <Text style={styles.addFoodLabel}>Add food</Text>
           </Pressable>
 
           <TabItem
-            label="Bookings"
+            label="Collections"
             icon="calendar-check"
-            active={isBookings}
-            onPress={() =>
-              navigate("/enterprises/reservations")
-            }
+            active={isCollections}
+            onPress={() => navigate("/enterprises/reservations")}
           />
 
           <TabItem
@@ -178,21 +143,21 @@ export default function EnterpriseTabBar() {
 }
 
 const styles = StyleSheet.create({
- safeArea: {
-  backgroundColor: "#FFFFFF",
-  borderTopWidth: StyleSheet.hairlineWidth,
-  borderTopColor: Colors.light.backgroundElement,
-},
-bar: {
-  minHeight: 64,
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-around",
-  paddingHorizontal: Spacing.one,
-  paddingTop: Spacing.two,
-  paddingBottom: Spacing.one,
-  backgroundColor: "#FFFFFF",
-},
+  safeArea: {
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.light.backgroundElement,
+  },
+  bar: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: Spacing.one,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.one,
+    backgroundColor: "#FFFFFF",
+  },
   tabItem: {
     flex: 1,
     minWidth: 0,

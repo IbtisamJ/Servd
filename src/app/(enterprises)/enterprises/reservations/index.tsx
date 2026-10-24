@@ -11,7 +11,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
@@ -225,34 +224,34 @@ export default function ReservationsScreen() {
 
   if (authLoading || loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.helperText}>Loading your reservations...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
         <View style={styles.centered}>
           <Text style={styles.helperText}>Redirecting to sign in...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.screen}>
-        <BrandHeader
-          role="ENTERPRISE"
-          actionLabel="Home"
-          onActionPress={() => router.replace("/enterprises" as never)}
-        />
+    <View style={styles.container}>
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Home"
+        onActionPress={() => router.replace("/enterprises" as never)}
+      />
 
+      <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -558,12 +557,12 @@ export default function ReservationsScreen() {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: colors.background,
   },

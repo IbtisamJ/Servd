@@ -5,11 +5,11 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
+  onSnapshot,
   query,
   where,
 } from "firebase/firestore";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -18,7 +18,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BrandHeader } from "@/components/enterprise";
 import { auth, db } from "@/config/firebase";
@@ -27,6 +26,7 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 
 const colors = Colors.light;
 
+// Fields used to display each donation.
 type DonationRecord = {
   id: string;
   foodName?: string;
@@ -36,6 +36,7 @@ type DonationRecord = {
   createdTimestamp?: { toDate?: () => Date } | Date | string;
 };
 
+// Converts Firestore timestamps and other date formats into readable dates.
 function formatDate(value: DonationRecord["createdTimestamp"]): string {
   if (!value) return "Date unavailable";
 
@@ -60,6 +61,7 @@ function formatDate(value: DonationRecord["createdTimestamp"]): string {
   });
 }
 
+// Converts supported timestamp formats into milliseconds for sorting.
 function getTimestamp(value: DonationRecord["createdTimestamp"]): number {
   if (!value) return 0;
 
@@ -75,6 +77,7 @@ function getTimestamp(value: DonationRecord["createdTimestamp"]): number {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
+// Selects a status badge colour based on the donation's current status.
 function getStatusColor(status?: string) {
   switch (status?.toLowerCase()) {
     case "available":
@@ -91,76 +94,173 @@ function getStatusColor(status?: string) {
   }
 }
 
+// Gets the first usable name from the user's profile.
+function getUserName(
+  profile: Record<string, unknown> | undefined,
+  authDisplayName?: string | null,
+): string {
+  const candidates = [
+    profile?.name,
+    profile?.fullName,
+    profile?.displayName,
+    profile?.firstName,
+    authDisplayName,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
+}
+
 export default function EnterpriseDashboard() {
   const [enterpriseName, setEnterpriseName] = useState("");
+  const [userName, setUserName] = useState("");
   const [donations, setDonations] = useState<DonationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const loadDashboard = useCallback(async (uid: string) => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const enterpriseRef = doc(db, COLLECTIONS.ENTERPRISES, uid);
-
-      const donationsQuery = query(
-        collection(db, COLLECTIONS.DONATIONS),
-        where("enterpriseId", "==", uid),
-      );
-
-      const [enterpriseSnapshot, donationSnapshot] = await Promise.all([
-        getDoc(enterpriseRef),
-        getDocs(donationsQuery),
-      ]);
-
-      setEnterpriseName(
-        enterpriseSnapshot.exists()
-          ? (enterpriseSnapshot.data().enterpriseName ?? "")
-          : "",
-      );
-
-      const records: DonationRecord[] = donationSnapshot.docs.map(
-        (donationDoc) => ({
-          ...donationDoc.data(),
-          id: donationDoc.id,
-        }),
-      );
-
-      records.sort(
-        (a, b) =>
-          getTimestamp(b.createdTimestamp) - getTimestamp(a.createdTimestamp),
-      );
-
-      setDonations(records);
-    } catch (err) {
-      console.error("Error loading enterprise dashboard:", err);
-      setError("We couldn't load your dashboard. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Loads the user's profile and listens for donation changes in real time.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    let unsubscribeDonations: (() => void) | undefined;
+    let cancelled = false;
+    let activeUid: string | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // Stop listening to the previous user's donations if the account changes.
+      unsubscribeDonations?.();
+      unsubscribeDonations = undefined;
+      activeUid = user?.uid ?? null;
+
       if (!user) {
         setEnterpriseName("");
+        setUserName("");
         setDonations([]);
+        setError("");
         setLoading(false);
         router.replace("/Login" as never);
         return;
       }
 
-      void loadDashboard(user.uid);
+      const uid = user.uid;
+      let profileLoaded = false;
+      let donationsLoaded = false;
+
+      setLoading(true);
+      setError("");
+      setDonations([]);
+
+      const finishLoadingIfReady = () => {
+        if (
+          !cancelled &&
+          activeUid === uid &&
+          profileLoaded &&
+          donationsLoaded
+        ) {
+          setLoading(false);
+        }
+      };
+
+      // Fetch the enterprise profile and the general user profile.
+      const loadProfiles = async () => {
+        try {
+          const [enterpriseSnapshot, userSnapshot] = await Promise.all([
+            getDoc(doc(db, COLLECTIONS.ENTERPRISES, uid)),
+            getDoc(doc(db, COLLECTIONS.USERS, uid)),
+          ]);
+
+          if (cancelled || activeUid !== uid) return;
+
+          const enterpriseData = enterpriseSnapshot.exists()
+            ? enterpriseSnapshot.data()
+            : {};
+
+          const userData = userSnapshot.exists()
+            ? userSnapshot.data()
+            : undefined;
+
+          setEnterpriseName(
+            typeof enterpriseData.enterpriseName === "string"
+              ? enterpriseData.enterpriseName
+              : "",
+          );
+
+          setUserName(getUserName(userData, user.displayName));
+
+          profileLoaded = true;
+          finishLoadingIfReady();
+        } catch (err) {
+          console.error("Error loading enterprise profile:", err);
+
+          if (!cancelled && activeUid === uid) {
+            // Still use the Firebase Authentication name if the profile
+            // document could not be loaded.
+            setUserName(user.displayName ?? "");
+            setError("We couldn't load your dashboard. Please try again.");
+            setLoading(false);
+          }
+        }
+      };
+
+      void loadProfiles();
+
+      // Listen for all donation changes belonging to this enterprise.
+      const donationsQuery = query(
+        collection(db, COLLECTIONS.DONATIONS),
+        where("enterpriseId", "==", uid),
+      );
+
+      unsubscribeDonations = onSnapshot(
+        donationsQuery,
+        (snapshot) => {
+          if (cancelled || activeUid !== uid) return;
+
+          const records: DonationRecord[] = snapshot.docs.map(
+            (donationDoc) => ({
+              ...donationDoc.data(),
+              id: donationDoc.id,
+            }),
+          );
+
+          records.sort(
+            (a, b) =>
+              getTimestamp(b.createdTimestamp) -
+              getTimestamp(a.createdTimestamp),
+          );
+
+          setDonations(records);
+          setError("");
+          donationsLoaded = true;
+          finishLoadingIfReady();
+        },
+        (err) => {
+          console.error("Error listening to enterprise donations:", err);
+
+          if (!cancelled && activeUid === uid) {
+            setError("We couldn't load your dashboard. Please try again.");
+            setLoading(false);
+          }
+        },
+      );
     });
 
-    return unsubscribe;
-  }, [loadDashboard]);
+    return () => {
+      cancelled = true;
+      unsubscribeDonations?.();
+      unsubscribeAuth();
+    };
+  }, [refreshKey]);
 
+  // Centralises navigation to the dashboard's other enterprise screens.
   const goTo = (path: string) => {
     router.push(path as never);
   };
 
+  // Donation totals update automatically when Firestore records change.
   const availableCount = donations.filter(
     (donation) => donation.status?.toLowerCase() === "available",
   ).length;
@@ -174,528 +274,587 @@ export default function EnterpriseDashboard() {
   ).length;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.screen}>
-        {/* Shared Servd branding and enterprise navigation action. */}
-        <BrandHeader
-          role="ENTERPRISE"
-          actionLabel="Notifications"
-          onActionPress={() => goTo("/notifications")}
-        />
+    <View style={styles.screen}>
+      <BrandHeader
+        role="ENTERPRISE"
+        actionLabel="Notifications"
+        onActionPress={() => goTo("/notifications")}
+      />
 
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.workspace}>
-            <View style={styles.welcomeSection}>
-              <Text style={styles.eyebrow}>ENTERPRISE DASHBOARD</Text>
-              <Text style={styles.heading}>
-                Welcome back{enterpriseName ? "," : "."}
-              </Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.workspace}>
+          {/* Personalised welcome section */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.eyebrow}>ENTERPRISE DASHBOARD</Text>
 
-              {enterpriseName ? (
-                <Text style={styles.enterpriseName}>{enterpriseName}</Text>
-              ) : null}
+            <Text style={styles.heading}>
+              Welcome back{userName ? "," : "."}
+            </Text>
 
-              <Text style={styles.subtitle}>
-                Make a difference with every donation. Manage your surplus food
-                and help get good food to the people who need it.
-              </Text>
-            </View>
+            {userName ? <Text style={styles.userName}>{userName}.</Text> : null}
 
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => goTo("/enterprises/donations/create")}
-              style={({ pressed }) => [
-                styles.featureCard,
-                pressed && styles.cardPressed,
-              ]}
-            >
-              <View style={styles.featureIcon}>
-                <FontAwesome5
-                  name="plus"
-                  size={20}
-                  color="#FFFFFF"
-                  iconStyle="solid"
-                />
-              </View>
+            {enterpriseName ? (
+              <Text style={styles.enterpriseName}>{enterpriseName}</Text>
+            ) : null}
 
-              <Text style={styles.featureEyebrow}>MAKE AN IMPACT</Text>
-              <Text style={styles.featureTitle}>Share good food.</Text>
-              <Text style={styles.featureDescription}>
-                List surplus food for local NGOs to discover and collect.
-              </Text>
+            <Text style={styles.subtitle}>
+              Make a difference with every donation. Manage your surplus food
+              and help get good food to the people who need it.
+            </Text>
+          </View>
 
-              <View style={styles.featureAction}>
-                <Text style={styles.featureActionText}>Create a donation</Text>
-                <FontAwesome5
-                  name="arrow-right"
-                  size={13}
-                  color="#FFFFFF"
-                  iconStyle="solid"
-                />
-              </View>
-            </Pressable>
+          {/* Create donation call to action */}
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Your donations</Text>
-                <Text style={styles.sectionCaption}>Live records</Text>
-              </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => goTo("/enterprises/donations/create")}
+            style={({ pressed }) => [
+              styles.featureCard,
+              pressed && styles.cardPressed,
+            ]}
+          >
+            {/* Decorative circles in the background */}
+            <View pointerEvents="none" style={styles.circleLarge} />
+            <View pointerEvents="none" style={styles.circleSmall} />
 
-              {loading ? (
-                <View style={styles.feedbackCard}>
-                  <ActivityIndicator color={colors.primary} size="large" />
-                  <Text style={styles.feedbackText}>
-                    Loading your donations...
-                  </Text>
-                </View>
-              ) : error ? (
-                <View style={styles.feedbackCard}>
-                  <FontAwesome5
-                    name="exclamation-circle"
-                    size={22}
-                    color={colors.error}
-                    iconStyle="solid"
-                  />
-                  <Text style={styles.feedbackText}>{error}</Text>
-                  <Pressable
-                    onPress={() => {
-                      const user = auth.currentUser;
-                      if (user) void loadDashboard(user.uid);
-                    }}
-                    style={styles.retryButton}
-                  >
-                    <Text style={styles.retryText}>Try again</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
-                      <View style={[styles.statIcon, styles.tealIcon]}>
-                        <FontAwesome5
-                          name="box-open"
-                          size={17}
-                          color={colors.secondary}
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <Text style={styles.statValue}>{donations.length}</Text>
-                      <Text style={styles.statLabel}>Total donations</Text>
-                    </View>
-
-                    <View style={styles.statCard}>
-                      <View style={[styles.statIcon, styles.oliveIcon]}>
-                        <FontAwesome5
-                          name="check-circle"
-                          size={17}
-                          color={colors.accent}
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <Text style={styles.statValue}>{availableCount}</Text>
-                      <Text style={styles.statLabel}>Available</Text>
-                    </View>
-
-                    <View style={styles.statCard}>
-                      <View style={[styles.statIcon, styles.amberIcon]}>
-                        <FontAwesome5
-                          name="clock"
-                          size={17}
-                          color="#946000"
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <Text style={styles.statValue}>{reservedCount}</Text>
-                      <Text style={styles.statLabel}>Reserved</Text>
-                    </View>
-
-                    <View style={styles.statCard}>
-                      <View style={[styles.statIcon, styles.purpleIcon]}>
-                        <FontAwesome5
-                          name="hand-holding-heart"
-                          size={17}
-                          color="#6B63A8"
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <Text style={styles.statValue}>{collectedCount}</Text>
-                      <Text style={styles.statLabel}>Collected</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <View>
-                        <Text style={styles.sectionTitle}>
-                          Recent donations
-                        </Text>
-                        <Text style={styles.sectionCaption}>
-                          Your latest food listings
-                        </Text>
-                      </View>
-
-                      <Pressable
-                        onPress={() => goTo("/enterprises/donations")}
-                        style={styles.viewAllButton}
-                      >
-                        <Text style={styles.viewAllText}>View all</Text>
-                        <FontAwesome5
-                          name="arrow-right"
-                          size={11}
-                          color={colors.primary}
-                          iconStyle="solid"
-                        />
-                      </Pressable>
-                    </View>
-
-                    <View style={styles.donationsCard}>
-                      {donations.length === 0 ? (
-                        <View style={styles.emptyState}>
-                          <FontAwesome5
-                            name="box-open"
-                            size={25}
-                            color={colors.textSecondary}
-                            iconStyle="solid"
-                          />
-                          <Text style={styles.emptyTitle}>
-                            No donations yet
-                          </Text>
-                          <Text style={styles.emptyDescription}>
-                            Your food listings will appear here once you create
-                            your first donation.
-                          </Text>
-                        </View>
-                      ) : (
-                        donations.slice(0, 3).map((donation, index) => {
-                          const statusStyle = getStatusColor(donation.status);
-
-                          return (
-                            <View key={donation.id}>
-                              {index > 0 ? (
-                                <View style={styles.divider} />
-                              ) : null}
-
-                              <Pressable
-                                accessibilityRole="button"
-                                onPress={() =>
-                                  goTo(`/enterprises/donations/${donation.id}`)
-                                }
-                                style={({ pressed }) => [
-                                  styles.donationRow,
-                                  pressed && styles.cardPressed,
-                                ]}
-                              >
-                                <View style={styles.donationIcon}>
-                                  <FontAwesome5
-                                    name="utensils"
-                                    size={16}
-                                    color={colors.secondary}
-                                    iconStyle="solid"
-                                  />
-                                </View>
-
-                                <View style={styles.donationCopy}>
-                                  <Text
-                                    style={styles.donationName}
-                                    numberOfLines={1}
-                                  >
-                                    {donation.foodName || "Untitled donation"}
-                                  </Text>
-
-                                  <Text style={styles.donationMeta}>
-                                    {donation.category || "Food donation"}
-                                    {donation.quantity != null
-                                      ? ` · Quantity: ${donation.quantity}`
-                                      : ""}
-                                  </Text>
-
-                                  <Text style={styles.donationDate}>
-                                    Created{" "}
-                                    {formatDate(donation.createdTimestamp)}
-                                  </Text>
-                                </View>
-
-                                <View
-                                  style={[
-                                    styles.statusBadge,
-                                    {
-                                      backgroundColor: statusStyle.background,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.statusText,
-                                      { color: statusStyle.text },
-                                    ]}
-                                  >
-                                    {donation.status || "Unknown"}
-                                  </Text>
-                                </View>
-                              </Pressable>
-                            </View>
-                          );
-                        })
-                      )}
-                    </View>
-                  </View>
-
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Manage your account</Text>
-
-                    <Pressable
-                      style={styles.actionRow}
-                      onPress={() => goTo("/enterprises/reservations")}
-                    >
-                      <View style={[styles.actionIcon, styles.tealIcon]}>
-                        <FontAwesome5
-                          name="clipboard-list"
-                          size={17}
-                          color={colors.secondary}
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <View style={styles.actionCopy}>
-                        <Text style={styles.actionTitle}>Reservations</Text>
-                        <Text style={styles.actionDescription}>
-                          Keep track of food collections.
-                        </Text>
-                      </View>
-                      <FontAwesome5
-                        name="chevron-right"
-                        size={12}
-                        color={colors.textSecondary}
-                        iconStyle="solid"
-                      />
-                    </Pressable>
-
-                    <Pressable
-                      style={styles.actionRow}
-                      onPress={() => goTo("/notifications")}
-                    >
-                      <View style={[styles.actionIcon, styles.oliveIcon]}>
-                        <FontAwesome5
-                          name="bell"
-                          size={17}
-                          color={colors.accent}
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <View style={styles.actionCopy}>
-                        <Text style={styles.actionTitle}>Notifications</Text>
-                        <Text style={styles.actionDescription}>
-                          Check your latest updates.
-                        </Text>
-                      </View>
-                      <FontAwesome5
-                        name="chevron-right"
-                        size={12}
-                        color={colors.textSecondary}
-                        iconStyle="solid"
-                      />
-                    </Pressable>
-
-                    <Pressable
-                      style={styles.actionRow}
-                      onPress={() => goTo("/enterprises/profile")}
-                    >
-                      <View style={[styles.actionIcon, styles.oliveIcon]}>
-                        <FontAwesome5
-                          name="building"
-                          size={17}
-                          color={colors.accent}
-                          iconStyle="solid"
-                        />
-                      </View>
-                      <View style={styles.actionCopy}>
-                        <Text style={styles.actionTitle}>
-                          Enterprise profile
-                        </Text>
-                        <Text style={styles.actionDescription}>
-                          View your business details.
-                        </Text>
-                      </View>
-                      <FontAwesome5
-                        name="chevron-right"
-                        size={12}
-                        color={colors.textSecondary}
-                        iconStyle="solid"
-                      />
-                    </Pressable>
-                  </View>
-                </>
-              )}
-            </View>
-
-            <View style={styles.footer}>
+            <View style={styles.featureIcon}>
               <FontAwesome5
-                name="heart"
-                size={12}
-                color={colors.primary}
+                name="plus"
+                size={20}
+                color="#FFFFFF"
                 iconStyle="solid"
               />
-              <Text style={styles.footerText}>
-                Good food deserves to be shared.
-              </Text>
             </View>
+
+            <Text style={styles.featureEyebrow}>MAKE AN IMPACT</Text>
+            <Text style={styles.featureTitle}>Share good food.</Text>
+            <Text style={styles.featureDescription}>
+              List surplus food for local NGOs to discover and collect.
+            </Text>
+
+            <View style={styles.featureAction}>
+              <Text style={styles.featureActionText}>Create a donation</Text>
+              <FontAwesome5
+                name="arrow-right"
+                size={13}
+                color="#FFFFFF"
+                iconStyle="solid"
+              />
+            </View>
+          </Pressable>
+
+          {/* Donation summary and records */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your donations</Text>
+              <Text style={styles.sectionCaption}>Live records</Text>
+            </View>
+
+            {loading ? (
+              <View style={styles.feedbackCard}>
+                <ActivityIndicator color={colors.primary} size="large" />
+                <Text style={styles.feedbackText}>
+                  Loading your donations...
+                </Text>
+              </View>
+            ) : error ? (
+              <View style={styles.feedbackCard}>
+                <FontAwesome5
+                  name="exclamation-circle"
+                  size={22}
+                  color={colors.error}
+                  iconStyle="solid"
+                />
+                <Text style={styles.feedbackText}>{error}</Text>
+                <Pressable
+                  onPress={() => setRefreshKey((key) => key + 1)}
+                  style={styles.retryButton}
+                >
+                  <Text style={styles.retryText}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, styles.tealIcon]}>
+                      <FontAwesome5
+                        name="box-open"
+                        size={17}
+                        color={colors.secondary}
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <Text style={styles.statValue}>{donations.length}</Text>
+                    <Text style={styles.statLabel}>Total donations</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, styles.oliveIcon]}>
+                      <FontAwesome5
+                        name="check-circle"
+                        size={17}
+                        color={colors.accent}
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <Text style={styles.statValue}>{availableCount}</Text>
+                    <Text style={styles.statLabel}>Available</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, styles.amberIcon]}>
+                      <FontAwesome5
+                        name="clock"
+                        size={17}
+                        color="#946000"
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <Text style={styles.statValue}>{reservedCount}</Text>
+                    <Text style={styles.statLabel}>Reserved</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, styles.purpleIcon]}>
+                      <FontAwesome5
+                        name="hand-holding-heart"
+                        size={17}
+                        color="#6B63A8"
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <Text style={styles.statValue}>{collectedCount}</Text>
+                    <Text style={styles.statLabel}>Collected</Text>
+                  </View>
+                </View>
+
+                {/* Recent donations */}
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.sectionTitle}>Recent donations</Text>
+                      <Text style={styles.sectionCaption}>
+                        Your latest food listings
+                      </Text>
+                    </View>
+
+                    <Pressable
+                      onPress={() => goTo("/enterprises/donations")}
+                      style={styles.viewAllButton}
+                    >
+                      <Text style={styles.viewAllText}>View all</Text>
+                      <FontAwesome5
+                        name="arrow-right"
+                        size={11}
+                        color={colors.primary}
+                        iconStyle="solid"
+                      />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.donationsCard}>
+                    {donations.length === 0 ? (
+                      <View style={styles.emptyState}>
+                        <FontAwesome5
+                          name="box-open"
+                          size={25}
+                          color={colors.textSecondary}
+                          iconStyle="solid"
+                        />
+                        <Text style={styles.emptyTitle}>No donations yet</Text>
+                        <Text style={styles.emptyDescription}>
+                          Your food listings will appear here once you create
+                          your first donation.
+                        </Text>
+                      </View>
+                    ) : (
+                      donations.slice(0, 3).map((donation, index) => {
+                        const statusStyle = getStatusColor(donation.status);
+
+                        return (
+                          <View key={donation.id}>
+                            {index > 0 ? <View style={styles.divider} /> : null}
+
+                            <Pressable
+                              accessibilityRole="button"
+                              onPress={() =>
+                                goTo(`/enterprises/donations/${donation.id}`)
+                              }
+                              style={({ pressed }) => [
+                                styles.donationRow,
+                                pressed && styles.cardPressed,
+                              ]}
+                            >
+                              <View style={styles.donationIcon}>
+                                <FontAwesome5
+                                  name="utensils"
+                                  size={16}
+                                  color={colors.secondary}
+                                  iconStyle="solid"
+                                />
+                              </View>
+
+                              <View style={styles.donationCopy}>
+                                <Text
+                                  style={styles.donationName}
+                                  numberOfLines={1}
+                                >
+                                  {donation.foodName || "Untitled donation"}
+                                </Text>
+
+                                <Text style={styles.donationMeta}>
+                                  {donation.category || "Food donation"}
+                                  {donation.quantity != null
+                                    ? ` · Quantity: ${donation.quantity}`
+                                    : ""}
+                                </Text>
+
+                                <Text style={styles.donationDate}>
+                                  Created{" "}
+                                  {formatDate(donation.createdTimestamp)}
+                                </Text>
+                              </View>
+
+                              <View
+                                style={[
+                                  styles.statusBadge,
+                                  {
+                                    backgroundColor: statusStyle.background,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.statusText,
+                                    { color: statusStyle.text },
+                                  ]}
+                                >
+                                  {donation.status || "Unknown"}
+                                </Text>
+                              </View>
+                            </Pressable>
+                          </View>
+                        );
+                      })
+                    )}
+                  </View>
+                </View>
+
+                {/* Enterprise shortcuts */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Manage your account</Text>
+
+                  <Pressable
+                    style={styles.actionRow}
+                    onPress={() => goTo("/enterprises/reservations")}
+                  >
+                    <View style={[styles.actionIcon, styles.tealIcon]}>
+                      <FontAwesome5
+                        name="clipboard-list"
+                        size={17}
+                        color={colors.secondary}
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <View style={styles.actionCopy}>
+                      <Text style={styles.actionTitle}>Reservations</Text>
+                      <Text style={styles.actionDescription}>
+                        Keep track of food collections.
+                      </Text>
+                    </View>
+                    <FontAwesome5
+                      name="chevron-right"
+                      size={12}
+                      color={colors.textSecondary}
+                      iconStyle="solid"
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionRow}
+                    onPress={() => goTo("/notifications")}
+                  >
+                    <View style={[styles.actionIcon, styles.oliveIcon]}>
+                      <FontAwesome5
+                        name="bell"
+                        size={17}
+                        color={colors.accent}
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <View style={styles.actionCopy}>
+                      <Text style={styles.actionTitle}>Notifications</Text>
+                      <Text style={styles.actionDescription}>
+                        Check your latest updates.
+                      </Text>
+                    </View>
+                    <FontAwesome5
+                      name="chevron-right"
+                      size={12}
+                      color={colors.textSecondary}
+                      iconStyle="solid"
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionRow}
+                    onPress={() => goTo("/enterprises/profile")}
+                  >
+                    <View style={[styles.actionIcon, styles.oliveIcon]}>
+                      <FontAwesome5
+                        name="building"
+                        size={17}
+                        color={colors.accent}
+                        iconStyle="solid"
+                      />
+                    </View>
+                    <View style={styles.actionCopy}>
+                      <Text style={styles.actionTitle}>Enterprise profile</Text>
+                      <Text style={styles.actionDescription}>
+                        View your business details.
+                      </Text>
+                    </View>
+                    <FontAwesome5
+                      name="chevron-right"
+                      size={12}
+                      color={colors.textSecondary}
+                      iconStyle="solid"
+                    />
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+
+          {/* Personalised footer */}
+          <View style={styles.footer}>
+            <FontAwesome5
+              name="heart"
+              size={12}
+              color={colors.primary}
+              iconStyle="solid"
+            />
+            <Text style={styles.footerText}>
+              Good food deserves to be shared.
+            </Text>
+            {userName ? (
+              <Text style={styles.footerName}>{userName}</Text>
+            ) : null}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
   },
   workspace: {
     width: "100%",
-    maxWidth: 800,
+    maxWidth: 900,
     alignSelf: "center",
-    gap: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.four,
   },
   welcomeSection: {
-    gap: Spacing.two,
+    marginBottom: Spacing.four,
   },
   eyebrow: {
     fontFamily: Fonts.body,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.3,
-    color: colors.secondary,
+    color: colors.textSecondary,
+    marginBottom: Spacing.two,
   },
   heading: {
     fontFamily: Fonts.heading,
-    fontSize: 29,
-    lineHeight: 36,
+    fontSize: 27,
+    fontWeight: "700",
     color: colors.text,
   },
-  enterpriseName: {
+  userName: {
     fontFamily: Fonts.heading,
-    fontSize: 23,
-    lineHeight: 30,
+    fontSize: 27,
+    fontWeight: "700",
     color: colors.primary,
+    marginTop: 2,
+  },
+  enterpriseName: {
+    fontFamily: Fonts.body,
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    marginTop: Spacing.one,
   },
   subtitle: {
     fontFamily: Fonts.body,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 21,
     color: colors.textSecondary,
-    maxWidth: 520,
+    marginTop: Spacing.two,
   },
+
   featureCard: {
-    backgroundColor: colors.primary,
-    borderRadius: Radius.lg,
     padding: Spacing.four,
-    gap: Spacing.two,
+    marginBottom: Spacing.four,
+    borderRadius: Radius.lg,
+    backgroundColor: colors.primary,
+    overflow: "hidden",
+    position: "relative",
+  },
+
+  circleLarge: {
+    position: "absolute",
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: "#FFFFFF",
+    opacity: 0.1,
+    top: -115,
+    right: -65,
+  },
+  circleSmall: {
+    position: "absolute",
+    width: 135,
+    height: 135,
+    borderRadius: 68,
+    backgroundColor: "#FFB5AA",
+    opacity: 0.22,
+    bottom: -85,
+    right: 35,
   },
   featureIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: Radius.md,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: 42,
+    height: 42,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.one,
+    borderRadius: Radius.md,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    marginBottom: Spacing.three,
   },
   featureEyebrow: {
-    fontFamily: Fonts.button,
+    fontFamily: Fonts.body,
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 1.4,
+    letterSpacing: 1.3,
     color: "#FFFFFF",
     opacity: 0.85,
+    marginBottom: Spacing.one,
   },
   featureTitle: {
     fontFamily: Fonts.heading,
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 25,
+    fontWeight: "700",
     color: "#FFFFFF",
   },
   featureDescription: {
     fontFamily: Fonts.body,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 21,
     color: "#FFFFFF",
     opacity: 0.9,
-    maxWidth: 380,
+    marginTop: Spacing.two,
   },
   featureAction: {
-    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
     gap: Spacing.two,
-    marginTop: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: Radius.md,
+    marginTop: Spacing.four,
   },
   featureActionText: {
     fontFamily: Fonts.button,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   section: {
-    gap: Spacing.three,
+    marginBottom: Spacing.four,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: Spacing.two,
+    marginBottom: Spacing.three,
   },
   sectionTitle: {
     fontFamily: Fonts.heading,
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: "700",
     color: colors.text,
   },
   sectionCaption: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
     marginTop: 3,
+  },
+  feedbackCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    padding: Spacing.four,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "#E8E5DF",
+  },
+  feedbackText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    color: colors.textSecondary,
+  },
+  retryButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.md,
+    backgroundColor: colors.backgroundElement,
+    marginTop: Spacing.one,
+  },
+  retryText: {
+    fontFamily: Fonts.button,
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
   },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.two,
+    marginBottom: Spacing.four,
   },
   statCard: {
     flexGrow: 1,
-    flexBasis: "44%",
-    minWidth: 0,
-    minHeight: 120,
+    flexBasis: "46%",
+    minWidth: 130,
     padding: Spacing.three,
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
-    borderRadius: Radius.lg,
     backgroundColor: "#FFFFFF",
-    justifyContent: "space-between",
-    gap: Spacing.two,
+    borderWidth: 1,
+    borderColor: "#E8E5DF",
+    borderRadius: Radius.lg,
   },
   statIcon: {
-    width: 35,
-    height: 35,
-    borderRadius: Radius.md,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: Radius.md,
+    marginBottom: Spacing.two,
   },
   tealIcon: {
     backgroundColor: "#E8F4F1",
@@ -707,102 +866,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF3DF",
   },
   purpleIcon: {
-    backgroundColor: "#F0EDFA",
+    backgroundColor: "#EFEDFA",
   },
   statValue: {
     fontFamily: Fonts.heading,
-    fontSize: 27,
-    lineHeight: 33,
+    fontSize: 25,
+    fontWeight: "700",
     color: colors.text,
   },
   statLabel: {
     fontFamily: Fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
-  },
-  donationsCard: {
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.three,
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-  },
-  donationRow: {
-    minHeight: 82,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-    paddingVertical: Spacing.three,
-  },
-  donationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    backgroundColor: "#E8F4F1",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  donationCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-  donationName: {
-    fontFamily: Fonts.button,
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  donationMeta: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  donationDate: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    color: colors.textSecondary,
-  },
-  statusBadge: {
-    borderRadius: Radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  statusText: {
-    fontFamily: Fonts.button,
-    fontSize: 10,
-    fontWeight: "700",
-    textTransform: "capitalize",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.backgroundElement,
-  },
-  emptyState: {
-    paddingVertical: Spacing.five,
-    paddingHorizontal: Spacing.three,
-    alignItems: "center",
-    gap: Spacing.two,
-  },
-  emptyTitle: {
-    fontFamily: Fonts.button,
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  emptyDescription: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 19,
-    textAlign: "center",
-    color: colors.textSecondary,
+    marginTop: 3,
   },
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: Spacing.one,
     paddingVertical: Spacing.two,
+    paddingLeft: Spacing.two,
   },
   viewAllText: {
     fontFamily: Fonts.button,
@@ -810,81 +893,140 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.primary,
   },
+  donationsCard: {
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8E5DF",
+    borderRadius: Radius.lg,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.five,
+    gap: Spacing.two,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  emptyDescription: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    color: colors.textSecondary,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E8E5DF",
+    marginHorizontal: Spacing.three,
+  },
+  donationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
+  donationIcon: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: Radius.md,
+    backgroundColor: "#E8F4F1",
+  },
+  donationCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  donationName: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  donationMeta: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 3,
+  },
+  donationDate: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 3,
+  },
+  statusBadge: {
+    alignSelf: "center",
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+  },
+  statusText: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
   actionRow: {
-    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
     padding: Spacing.three,
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
-    borderRadius: Radius.lg,
+    marginTop: Spacing.two,
     backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8E5DF",
+    borderRadius: Radius.lg,
   },
   actionIcon: {
-    width: 39,
-    height: 39,
-    borderRadius: Radius.md,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: Radius.md,
   },
   actionCopy: {
     flex: 1,
-    gap: 4,
   },
   actionTitle: {
-    fontFamily: Fonts.button,
-    fontSize: 13,
+    fontFamily: Fonts.body,
+    fontSize: 14,
     fontWeight: "700",
     color: colors.text,
   },
   actionDescription: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  feedbackCard: {
-    minHeight: 160,
-    padding: Spacing.four,
-    borderWidth: 1,
-    borderColor: colors.backgroundElement,
-    borderRadius: Radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.three,
-    backgroundColor: "#FFFFFF",
-  },
-  feedbackText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-  retryButton: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    backgroundColor: colors.primary,
-    borderRadius: Radius.md,
-  },
-  retryText: {
-    fontFamily: Fonts.button,
     fontSize: 12,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    color: colors.textSecondary,
+    marginTop: 3,
+  },
+  cardPressed: {
+    opacity: 0.72,
   },
   footer: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.two,
-    paddingVertical: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
   },
   footerText: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
+    textAlign: "center",
   },
-  cardPressed: {
-    opacity: 0.75,
+  footerName: {
+    fontFamily: Fonts.heading,
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primary,
+    textAlign: "center",
   },
 });

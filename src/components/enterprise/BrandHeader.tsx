@@ -1,14 +1,20 @@
+
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 
 type BrandHeaderProps = {
   role?: string;
+  title?: string;
   actionLabel?: string;
   onActionPress?: () => void;
 };
 
+const colors = Colors.light;
+
 export default function BrandHeader({
   role = "ENTERPRISE",
+  title = "Enterprise Workspace",
   actionLabel,
   onActionPress,
 }: BrandHeaderProps) {
@@ -23,10 +29,13 @@ export default function BrandHeader({
         />
 
         <View style={styles.brandText}>
-          <Text style={styles.wordmark}>Servd</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{role}</Text>
-          </View>
+          <Text style={styles.breadcrumb}>
+            {role.toUpperCase()} WORKSPACE
+          </Text>
+
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
         </View>
       </View>
 
@@ -38,58 +47,77 @@ export default function BrandHeader({
             pressed && styles.pressed,
           ]}
           accessibilityRole="button"
+          accessibilityLabel={actionLabel}
         >
           <Text style={styles.actionText}>{actionLabel}</Text>
         </Pressable>
-      ) : null}
+      ) : (
+        <View
+          style={styles.roleBadge}
+          accessibilityLabel={`${role} workspace`}
+        >
+          <FontAwesome5
+            name="building"
+            size={15}
+            color={colors.secondary}
+            iconStyle="solid"
+          />
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 76,
-    paddingHorizontal: Spacing.three,
+    minHeight: 78,
+    paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.light.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.light.backgroundElement,
+    gap: Spacing.three,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8E5DF",
   },
   brandGroup: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
   logo: {
-    width: 42,
-    height: 42,
+    width: 43,
+    height: 47,
   },
   brandText: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: "center",
-    gap: 2,
   },
-  wordmark: {
-    fontFamily: Fonts.heading,
-    fontSize: 24,
-    lineHeight: 28,
-    color: Colors.light.text,
-  },
-  roleBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.light.backgroundElement,
-  },
-  roleText: {
+  breadcrumb: {
     fontFamily: Fonts.body,
     fontSize: 9,
-    letterSpacing: 1,
     fontWeight: "700",
-    color: Colors.light.textSecondary,
+    letterSpacing: 1.3,
+    color: "#85827D",
+    marginBottom: 3,
+  },
+  title: {
+    fontFamily: Fonts.heading,
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#292929",
+  },
+  roleBadge: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EAF4F1",
+    borderRadius: Radius.md,
   },
   actionButton: {
     minHeight: 40,
@@ -103,7 +131,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.button,
     fontSize: 13,
     fontWeight: "600",
-    color: Colors.light.text,
+    color: colors.text,
   },
   pressed: {
     opacity: 0.7,

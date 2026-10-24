@@ -1,6 +1,7 @@
 import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EnterpriseTabBar } from "@/components/enterprise";
 import { Colors } from "@/constants/theme";
@@ -9,10 +10,14 @@ export default function EnterpriseGroupLayout() {
   const pathname = usePathname();
 
   const showEnterpriseTabBar =
-    pathname === "/enterprises" || pathname.startsWith("/enterprises/");
+    pathname === "/enterprises" ||
+    pathname.startsWith("/enterprises/");
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView
+      style={styles.container}
+      edges={["top", "left", "right"]}
+    >
       <StatusBar style="dark" />
 
       <View style={styles.content}>
@@ -31,14 +36,14 @@ export default function EnterpriseGroupLayout() {
       </View>
 
       {showEnterpriseTabBar && <EnterpriseTabBar />}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   content: {
     flex: 1,
