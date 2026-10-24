@@ -22,7 +22,7 @@ import {
 import { auth } from "../../config/firebase";
 import { DONATION_STATUS } from "../../constants/roles";
 import { Colors } from "../../constants/theme";
-import { reserveDonationForNGO } from "../../services/reservationService";
+import { createReservation } from "../../services/reservationService";
 import { styles } from "../../styles/DonationDetails.style";
 
 export default function DonationDetails() {
