@@ -18,7 +18,7 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 
 ### 🏪 Food Enterprises
 - Register and log in as a food enterprise
-- Create a donation (food name, category, description, quantity, collection location, collection deadline and expiry date)
+- Create a donation (food name, category, description, quantity, collection location, collection deadline and expiry date), with an optional food photo
 - Edit or cancel a donation
 - See the status of each donation and whether an NGO has reserved it
 
@@ -27,11 +27,11 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 - Verification status: *Pending → Approved / Rejected*
 - Only **approved** NGOs can reserve food
 - Browse available donations and view full details
-- Reserve a donation and track reservations
+- Reserve a donation, then mark it as collected or cancel the reservation
 
 ### 🛡️ Administrators
 - Dashboard with platform totals (pending NGO approvals, active donations, active reservations, registered users)
-- Review, search and filter NGO applications, then approve or reject them
+- Review, search and filter NGO applications, then approve or reject them (a reason is required when rejecting)
 - View and manage donation records, filtered by status
 - Manage enterprises, reservations and users
 
@@ -39,16 +39,34 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 - Email and password authentication (Firebase Authentication)
 - Role-based access: **Enterprise**, **NGO** and **Admin**
 - Firestore security rules enforce the roles on the server. For example, nobody can register as an admin, an NGO cannot approve itself, and unverified NGOs cannot reserve food
-- Input validation and clear error messages on registration and login
+- Input validation, a password strength indicator and clear error messages on registration and login
 - Login is remembered between app launches
 
 ---
 
 ## Screenshots
 
-### Getting started and registration
-| Splash | Login | Reset password | Create account | Organisation details | Account created |
+### Authentication and validation
+| Login | Registration | Required field errors | Password strength | Pending admin approval |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/01-auth-login.png" width="140" alt="Login"> | <img src="docs/screenshots/02-auth-register.png" width="140" alt="Registration"> | <img src="docs/screenshots/03-auth-validation.png" width="140" alt="Required field errors"> | <img src="docs/screenshots/04-auth-password-strength.png" width="140" alt="Password strength"> | <img src="docs/screenshots/05-auth-pending.png" width="140" alt="Pending admin approval"> |
+
+### Food enterprise
+| Dashboard | Create donation | My donations | Collections | Profile |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/06-ent-dashboard.png" width="140" alt="Dashboard"> | <img src="docs/screenshots/07-ent-create.png" width="140" alt="Create donation"> | <img src="docs/screenshots/08-ent-donations.png" width="140" alt="My donations"> | <img src="docs/screenshots/09-ent-collections.png" width="140" alt="Collections"> | <img src="docs/screenshots/10-ent-profile.png" width="140" alt="Profile"> |
+
+### NGO
+| Dashboard | Verification status | Available donations | Donation details | Reservation confirmed | Cancel reservation |
 |:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/11-ngo-dashboard.png" width="120" alt="Dashboard"> | <img src="docs/screenshots/16-ngo-verification.png" width="120" alt="Verification status"> | <img src="docs/screenshots/12-ngo-available.png" width="120" alt="Available donations"> | <img src="docs/screenshots/13-ngo-details.png" width="120" alt="Donation details"> | <img src="docs/screenshots/14-ngo-reserved.png" width="120" alt="Reservation confirmed"> | <img src="docs/screenshots/15-ngo-cancel.png" width="120" alt="Cancel reservation"> |
+
+### Admin
+| Dashboard | NGO management | NGO rejected | Donations | Reservations | Users |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/17-adm-dashboard.png" width="120" alt="Dashboard"> | <img src="docs/screenshots/18-adm-ngos.png" width="120" alt="NGO management"> | <img src="docs/screenshots/19-adm-rejected.png" width="120" alt="NGO rejected"> | <img src="docs/screenshots/20-adm-donations.png" width="120" alt="Donations"> | <img src="docs/screenshots/21-adm-reservations.png" width="120" alt="Reservations"> | <img src="docs/screenshots/22-adm-users.png" width="120" alt="Users"> |
+
+---:|:---:|:---:|:---:|:---:|:---:|
 | <img src="https://github.com/user-attachments/assets/4b191dec-126d-4df6-a07a-d4fad2a7d572" width="125" alt="Splash"> | <img src="https://github.com/user-attachments/assets/55f9c29d-fa37-4dd2-b28e-efd15499032f" width="125" alt="Login"> | <img src="https://github.com/user-attachments/assets/e4d0b235-6db3-4878-8150-2a74800ddbfd" width="125" alt="Reset password"> | <img src="https://github.com/user-attachments/assets/5493742a-ec6e-4eae-be1f-27a7ae50513a" width="125" alt="Create account"> | <img src="https://github.com/user-attachments/assets/168e3e45-58f8-4f1d-8b47-b93dd6579240" width="125" alt="Organisation details"> | <img src="https://github.com/user-attachments/assets/ed7d14fb-2468-41f6-a981-6ce435238d0d" width="125" alt="Account created"> |
 
 ### NGO experience
