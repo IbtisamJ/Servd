@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helper functions ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasRole(r) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == r;
+    }
+
+    function isAdmin() { return hasRole('admin'); }
+    function isEnterprise() { return hasRole('enterprise'); }
+
+    function isApprovedNgo() {
+      return hasRole('ngo')
+        && exists(/databases/$(database)/documents/ngos/$(request.auth.uid))
+        && get(/databases/$(database)/documents/ngos/$(request.auth.uid)).data.verificationStatus == 'approved';
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Self-registration: own record only, never as admin
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.userId == uid
+        && request.resource.data.role in ['enterprise', 'ngo']
+        && request.resource.data.accountStatus == 'active';
+
+      // Users may change their name only. Admins may change name/accountStatus.
+      allow update: if (signedIn() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'accountStatus']));
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------- ngos ----------
+    match /ngos/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin() || isEnterprise());
+
+      // New NGOs must start as pending
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.userId == uid
+        && request.resource.data.verificationStatus == 'pending';
+
+      // NGO edits its details but NOT its status. Only admin changes the status.
+      allow update: if (signedIn() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['organisationName', 'npoNumber', 'contactInfo']))
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verificationStatus', 'rejectionReason']));
+
+      allow delete: if isAdmin();
+    }
+
+// ---------- foodEnterprises ----------
+    match /foodEnterprises/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.userId == uid;
+      allow update: if (signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['enterpriseName', 'contactInfo']))
+        || (isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['accountStatus']));
+      allow delete: if isAdmin();
+    }
+
+    // ---------- Donations ----------
+    match /Donations/{donationId} {
+      allow read: if signedIn();
+
+      allow create: if isEnterprise()
+        && request.resource.data.enterpriseId == request.auth.uid
+        && request.resource.data.status == 'available';
+
+      allow update: if
+        // the enterprise that owns it (and can't reassign ownership)
+        (isEnterprise()
+          && resource.data.enterpriseId == request.auth.uid
+          && request.resource.data.enterpriseId == resource.data.enterpriseId)
+
+        || isAdmin()
+        // an APPROVED NGO may only flip available -> reserved
+
+        || (isApprovedNgo()
+           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedTimestamp'])
+           && (
+             (resource.data.status == 'available' && request.resource.data.status == 'reserved')
+             || (resource.data.status == 'reserved' && request.resource.data.status == 'available')
+             || (resource.data.status == 'reserved' && request.resource.data.status == 'collected')
+           )
+        );
+
+        allow delete: if isAdmin();
+      }
+
+    // ---------- Reservations ----------
+    match /Reservations/{reservationId} {
+      allow read: if signedIn()
+        && (isAdmin() || isEnterprise() || resource.data.ngoId == request.auth.uid);
+
+      allow create: if isApprovedNgo()
+        && request.resource.data.ngoId == request.auth.uid
+        && request.resource.data.status == 'active';
+
+      allow update: if signedIn()
+        && (isAdmin() || isEnterprise() || resource.data.ngoId == request.auth.uid);
+
+      allow delete: if isAdmin();
+    }
+  }
+}
