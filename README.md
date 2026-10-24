@@ -47,37 +47,24 @@ Food enterprises list their surplus food as donations. Verified NGOs browse what
 ## Screenshots
 
 ### Authentication and validation
-| Login | Registration | Required field errors | Password strength | Pending admin approval |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/01-auth-login.png" width="140" alt="Login"> | <img src="docs/screenshots/02-auth-register.png" width="140" alt="Registration"> | <img src="docs/screenshots/03-auth-validation.png" width="140" alt="Required field errors"> | <img src="docs/screenshots/04-auth-password-strength.png" width="140" alt="Password strength"> | <img src="docs/screenshots/05-auth-pending.png" width="140" alt="Pending admin approval"> |
+| **Login** | **Registration** | **Required field errors** | **Password strength** | **Pending admin approval** |   |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/01-auth-login.png" width="125" alt="Login"> | <img src="docs/screenshots/02-auth-register.png" width="125" alt="Registration"> | <img src="docs/screenshots/03-auth-validation.png" width="125" alt="Required field errors"> | <img src="docs/screenshots/04-auth-password-strength.png" width="125" alt="Password strength"> | <img src="docs/screenshots/05-auth-pending.png" width="125" alt="Pending admin approval"> |   |
 
 ### Food enterprise
-| Dashboard | Create donation | My donations | Collections | Profile |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/06-ent-dashboard.png" width="140" alt="Dashboard"> | <img src="docs/screenshots/07-ent-create.png" width="140" alt="Create donation"> | <img src="docs/screenshots/08-ent-donations.png" width="140" alt="My donations"> | <img src="docs/screenshots/09-ent-collections.png" width="140" alt="Collections"> | <img src="docs/screenshots/10-ent-profile.png" width="140" alt="Profile"> |
+| **Dashboard** | **Create donation** | **My donations** | **Collections** | **Profile** |   |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/06-ent-dashboard.png" width="125" alt="Dashboard"> | <img src="docs/screenshots/07-ent-create.png" width="125" alt="Create donation"> | <img src="docs/screenshots/08-ent-donations.png" width="125" alt="My donations"> | <img src="docs/screenshots/09-ent-collections.png" width="125" alt="Collections"> | <img src="docs/screenshots/10-ent-profile.png" width="125" alt="Profile"> |   |
 
 ### NGO
-| Dashboard | Verification status | Available donations | Donation details | Reservation confirmed | Cancel reservation |
+| **Dashboard** | **Verification status** | **Available donations** | **Donation details** | **Reservation confirmed** | **Cancel reservation** |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/11-ngo-dashboard.png" width="120" alt="Dashboard"> | <img src="docs/screenshots/16-ngo-verification.png" width="120" alt="Verification status"> | <img src="docs/screenshots/12-ngo-available.png" width="120" alt="Available donations"> | <img src="docs/screenshots/13-ngo-details.png" width="120" alt="Donation details"> | <img src="docs/screenshots/14-ngo-reserved.png" width="120" alt="Reservation confirmed"> | <img src="docs/screenshots/15-ngo-cancel.png" width="120" alt="Cancel reservation"> |
+| <img src="docs/screenshots/11-ngo-dashboard.png" width="125" alt="Dashboard"> | <img src="docs/screenshots/16-ngo-verification.png" width="125" alt="Verification status"> | <img src="docs/screenshots/12-ngo-available.png" width="125" alt="Available donations"> | <img src="docs/screenshots/13-ngo-details.png" width="125" alt="Donation details"> | <img src="docs/screenshots/14-ngo-reserved.png" width="125" alt="Reservation confirmed"> | <img src="docs/screenshots/15-ngo-cancel.png" width="125" alt="Cancel reservation"> |
 
 ### Admin
-| Dashboard | NGO management | NGO rejected | Donations | Reservations | Users |
+| **Dashboard** | **NGO management** | **NGO rejected** | **Donations** | **Reservations** | **Users** |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/17-adm-dashboard.png" width="120" alt="Dashboard"> | <img src="docs/screenshots/18-adm-ngos.png" width="120" alt="NGO management"> | <img src="docs/screenshots/19-adm-rejected.png" width="120" alt="NGO rejected"> | <img src="docs/screenshots/20-adm-donations.png" width="120" alt="Donations"> | <img src="docs/screenshots/21-adm-reservations.png" width="120" alt="Reservations"> | <img src="docs/screenshots/22-adm-users.png" width="120" alt="Users"> |
-
----:|:---:|:---:|:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/4b191dec-126d-4df6-a07a-d4fad2a7d572" width="125" alt="Splash"> | <img src="https://github.com/user-attachments/assets/55f9c29d-fa37-4dd2-b28e-efd15499032f" width="125" alt="Login"> | <img src="https://github.com/user-attachments/assets/e4d0b235-6db3-4878-8150-2a74800ddbfd" width="125" alt="Reset password"> | <img src="https://github.com/user-attachments/assets/5493742a-ec6e-4eae-be1f-27a7ae50513a" width="125" alt="Create account"> | <img src="https://github.com/user-attachments/assets/168e3e45-58f8-4f1d-8b47-b93dd6579240" width="125" alt="Organisation details"> | <img src="https://github.com/user-attachments/assets/ed7d14fb-2468-41f6-a981-6ce435238d0d" width="125" alt="Account created"> |
-
-### NGO experience
-| Pending approval | NGO dashboard | Verification status | Available donations | Donation details |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/848e6b7d-e36c-4a67-ab76-3e6db771c5dd" width="135" alt="Pending approval"> | <img src="https://github.com/user-attachments/assets/9e18ba9e-bb17-42b6-be5d-80ddf71669d0" width="135" alt="NGO dashboard"> | <img src="https://github.com/user-attachments/assets/372b80ee-e453-41ec-95f8-25adfc3555c4" width="135" alt="Verification status"> | <img src="https://github.com/user-attachments/assets/82a338da-35ef-4ccd-b6e7-3fd87465d53d" width="135" alt="Available donations"> | <img src="https://github.com/user-attachments/assets/f9b072bd-65b3-4651-a468-8e501d238bc5" width="135" alt="Donation details"> |
-
-### Admin experience
-| Admin dashboard | NGO management | Donations management | More admin features |
-|:---:|:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/6d5be392-b026-4012-96e4-8d40ce666a45" width="150" alt="Admin dashboard"> | <img src="https://github.com/user-attachments/assets/83c3f116-8a5d-463c-86e0-e7b9a6b4f804" width="150" alt="NGO management"> | <img src="https://github.com/user-attachments/assets/abebf968-bfdb-428f-8469-19eef0858be8" width="150" alt="Donations management"> | <img src="https://github.com/user-attachments/assets/f4e8d92d-9d1b-41f1-be5b-962c4c3400b3" width="150" alt="More admin features"> |
+| <img src="docs/screenshots/17-adm-dashboard.png" width="125" alt="Dashboard"> | <img src="docs/screenshots/18-adm-ngos.png" width="125" alt="NGO management"> | <img src="docs/screenshots/19-adm-rejected.png" width="125" alt="NGO rejected"> | <img src="docs/screenshots/20-adm-donations.png" width="125" alt="Donations"> | <img src="docs/screenshots/21-adm-reservations.png" width="125" alt="Reservations"> | <img src="docs/screenshots/22-adm-users.png" width="125" alt="Users"> |
 
 ---
 
