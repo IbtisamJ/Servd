@@ -1,20 +1,8 @@
 /**
  * Reservation Service
  *
- * Handles Firestore operations for creating and retrieving reservations
- * and updating reservation statuses. Uses Firestore transactions to
- * keep reservation and donation status changes consistent.
- *
- * Responsibilities:
- * - Retrieves reservation documents and includes their document IDs.
- * - Creates reservations for donations that are currently available.
- * - Updates the donation to reserved when a reservation is created.
- * - Prevents reservations for missing or unavailable donations.
- * - Marks active reservations as collected or cancelled.
- * - Updates the related donation in the same transaction.
- * - Makes the donation available again when a reservation is cancelled.
- * - Marks the donation as collected when the reservation is collected.
- * - Returns success or error information for supported operations.
+ * Creates and retrieves reservations and updates reservation statuses.
+ * Keeps reservation and donation updates consistent through transactions.
  */
 
 import {
@@ -41,24 +29,33 @@ const STATUS = {
   CANCELLED: "cancelled",
 };
 
-/** Helper to find the correct donation document reference. */
+/**
+ * Resolve a donation using its Firestore document ID first,
+ * then fall back to its logical donationId.
+ */
 const resolveDonationRef = async (donationId) => {
+  if (!donationId || typeof donationId !== "string") {
+    return null;
+  }
+
   const directRef = doc(db, DONATIONS, donationId);
   const directSnap = await getDoc(directRef);
+
   if (directSnap.exists()) {
     return directRef;
   }
 
-  const q = query(
+  const donationQuery = query(
     collection(db, DONATIONS),
     where("donationId", "==", donationId),
   );
-  const snapshot = await getDocs(q);
+
+  const snapshot = await getDocs(donationQuery);
 
   return snapshot.empty ? null : snapshot.docs[0].ref;
 };
 
-/** Get all reservations, including each Firestore document ID. */
+/** Return all reservations with their Firestore document IDs. */
 export const getReservations = async () => {
   const snapshot = await getDocs(collection(db, RESERVATIONS));
 
@@ -68,16 +65,59 @@ export const getReservations = async () => {
   }));
 };
 
-/** Reserve an available donation transactionally. */
-export const createReservation = async (donationId, ngoId, enterpriseId) => {
-  try {
-    const donationRef = await resolveDonationRef(donationId);
+/** Return reservations belonging to a specific NGO. */
+export const getReservationsForNGO = async (ngoId) => {
+  if (!ngoId) {
+    return [];
+  }
 
-    if (!donationRef) {
-      return { success: false, error: "Donation not found." };
+  const reservationsQuery = query(
+    collection(db, RESERVATIONS),
+    where("ngoId", "==", ngoId),
+  );
+
+  const snapshot = await getDocs(reservationsQuery);
+
+  return snapshot.docs.map((item) => ({
+    id: item.id,
+    ...item.data(),
+  }));
+};
+
+/**
+ * Create a reservation.
+ *
+ * Arguments:
+ * - donationDocumentId: Firestore document ID for the donation
+ * - ngoId: authenticated NGO user's UID
+ * - enterpriseId: owning enterprise user's UID
+ *
+ * Donation display details are copied from the donation document.
+ */
+export const createReservation = async (
+  donationDocumentId,
+  ngoId,
+  enterpriseId,
+) => {
+  try {
+    if (!donationDocumentId || !ngoId || !enterpriseId) {
+      return {
+        success: false,
+        error: "Donation, NGO, or enterprise information is missing.",
+      };
     }
 
-    const reservationRef = doc(db, RESERVATIONS, `res_${donationId}`);
+    const donationRef = await resolveDonationRef(donationDocumentId);
+
+    if (!donationRef) {
+      return {
+        success: false,
+        error: "Donation not found.",
+      };
+    }
+
+    // One reservation document per donation prevents duplicate reservations.
+    const reservationRef = doc(db, RESERVATIONS, `res_${donationRef.id}`);
 
     await runTransaction(db, async (transaction) => {
       const donationDoc = await transaction.get(donationRef);
@@ -88,28 +128,58 @@ export const createReservation = async (donationId, ngoId, enterpriseId) => {
 
       const donationData = donationDoc.data();
 
-      // Confirm the enterprise ID belongs to this donation
       if (donationData.enterpriseId !== enterpriseId) {
         throw new Error("The enterprise does not own this donation.");
       }
 
-      if (donationDoc.data().status !== STATUS.AVAILABLE) {
+      if (donationData.status !== STATUS.AVAILABLE) {
         throw new Error("This donation is no longer available.");
       }
 
+      const existingReservation = await transaction.get(reservationRef);
+
+      if (existingReservation.exists()) {
+        throw new Error(
+          "A reservation record already exists for this donation.",
+        );
+      }
+
+      const now = serverTimestamp();
+
       transaction.update(donationRef, {
         status: STATUS.RESERVED,
-        updatedTimestamp: serverTimestamp(),
+        updatedTimestamp: now,
       });
 
       transaction.set(reservationRef, {
         reservationId: reservationRef.id,
-        donationId,
+
+        // Keep both identifiers for screens and lookups.
+        donationDocumentId: donationRef.id,
+        donationId: donationData.donationId || donationRef.id,
+
         ngoId,
         enterpriseId,
+
+        // Details used by the NGO and enterprise screens.
+        foodName:
+          donationData.foodName ||
+          donationData.title ||
+          donationData.name ||
+          "Food donation",
+        category: donationData.category || "",
+        quantity: donationData.quantity ?? "",
+        description: donationData.description || "",
+        collectionLocation:
+          donationData.collectionLocation || donationData.pickupAddress || "",
+        collectionDeadline:
+          donationData.collectionDeadline ||
+          donationData.collectionTimeframe ||
+          null,
+
         status: STATUS.ACTIVE,
-        createdTimestamp: serverTimestamp(),
-        updatedTimestamp: serverTimestamp(),
+        createdTimestamp: now,
+        updatedTimestamp: now,
       });
     });
 
@@ -119,14 +189,18 @@ export const createReservation = async (donationId, ngoId, enterpriseId) => {
       error instanceof Error ? error.message : "Reservation failed.";
 
     console.error("Reservation failed:", message);
+
     return { success: false, error: message };
   }
 };
 
-/** Update a reservation and its donation in one transaction. */
+/**
+ * Update a reservation and its donation in the same transaction.
+ * donationDocumentId should be the Firestore document ID.
+ */
 export const updateReservationStatus = async (
   reservationId,
-  donationId,
+  donationDocumentId,
   newStatus,
 ) => {
   const allowedStatuses = [STATUS.COLLECTED, STATUS.CANCELLED];
@@ -139,10 +213,20 @@ export const updateReservationStatus = async (
   }
 
   try {
-    const donationRef = await resolveDonationRef(donationId);
+    if (!reservationId || !donationDocumentId) {
+      return {
+        success: false,
+        error: "Reservation or donation information is missing.",
+      };
+    }
+
+    const donationRef = await resolveDonationRef(donationDocumentId);
 
     if (!donationRef) {
-      return { success: false, error: "Donation not found." };
+      return {
+        success: false,
+        error: "Donation not found.",
+      };
     }
 
     const reservationRef = doc(db, RESERVATIONS, reservationId);
@@ -159,19 +243,30 @@ export const updateReservationStatus = async (
         throw new Error("Donation not found.");
       }
 
-      if (reservationDoc.data().status !== STATUS.ACTIVE) {
+      const reservationData = reservationDoc.data();
+
+      if (reservationData.status !== STATUS.ACTIVE) {
         throw new Error("This reservation is no longer active.");
       }
 
+      if (
+        reservationData.donationDocumentId &&
+        reservationData.donationDocumentId !== donationRef.id
+      ) {
+        throw new Error("The reservation does not match this donation.");
+      }
+
+      const now = serverTimestamp();
+
       transaction.update(reservationRef, {
         status: newStatus,
-        updatedTimestamp: serverTimestamp(),
+        updatedTimestamp: now,
       });
 
       transaction.update(donationRef, {
         status:
           newStatus === STATUS.CANCELLED ? STATUS.AVAILABLE : STATUS.COLLECTED,
-        updatedTimestamp: serverTimestamp(),
+        updatedTimestamp: now,
       });
     });
 
@@ -181,6 +276,15 @@ export const updateReservationStatus = async (
       error instanceof Error ? error.message : "Could not update reservation.";
 
     console.error("Reservation update failed:", message);
+
     return { success: false, error: message };
   }
 };
+
+/** Cancel an active reservation. */
+export const cancelReservation = (reservationId, donationDocumentId) =>
+  updateReservationStatus(reservationId, donationDocumentId, STATUS.CANCELLED);
+
+/** Mark an active reservation as collected. */
+export const markReservationCollected = (reservationId, donationDocumentId) =>
+  updateReservationStatus(reservationId, donationDocumentId, STATUS.COLLECTED);

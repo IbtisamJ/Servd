@@ -31,7 +31,6 @@ export default function EnterpriseGroupLayout() {
           }}
         >
           <Stack.Screen name="enterprises" />
-          <Stack.Screen name="notifications" />
         </Stack>
       </View>
 

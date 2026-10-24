@@ -275,11 +275,7 @@ export default function EnterpriseDashboard() {
 
   return (
     <View style={styles.screen}>
-      <BrandHeader
-        role="ENTERPRISE"
-        actionLabel="Notifications"
-        onActionPress={() => goTo("/notifications")}
-      />
+      <BrandHeader role="ENTERPRISE" />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -307,7 +303,6 @@ export default function EnterpriseDashboard() {
           </View>
 
           {/* Create donation call to action */}
-
           <Pressable
             accessibilityRole="button"
             onPress={() => goTo("/enterprises/donations/create")}
@@ -564,32 +559,6 @@ export default function EnterpriseDashboard() {
                       <Text style={styles.actionTitle}>Reservations</Text>
                       <Text style={styles.actionDescription}>
                         Keep track of food collections.
-                      </Text>
-                    </View>
-                    <FontAwesome5
-                      name="chevron-right"
-                      size={12}
-                      color={colors.textSecondary}
-                      iconStyle="solid"
-                    />
-                  </Pressable>
-
-                  <Pressable
-                    style={styles.actionRow}
-                    onPress={() => goTo("/notifications")}
-                  >
-                    <View style={[styles.actionIcon, styles.oliveIcon]}>
-                      <FontAwesome5
-                        name="bell"
-                        size={17}
-                        color={colors.accent}
-                        iconStyle="solid"
-                      />
-                    </View>
-                    <View style={styles.actionCopy}>
-                      <Text style={styles.actionTitle}>Notifications</Text>
-                      <Text style={styles.actionDescription}>
-                        Check your latest updates.
                       </Text>
                     </View>
                     <FontAwesome5

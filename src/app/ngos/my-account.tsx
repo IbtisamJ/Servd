@@ -1,52 +1,41 @@
-
 /**
  * NGO My Account Screen
  *
- * Displays the signed-in NGO user's account details and organisation
- * information retrieved from Firebase Authentication and Firestore.
+ * Displays the signed-in NGO user's account and organisation details
+ * using fields currently stored in Firebase.
  *
- * This screen is read-only for now. We can add editing functionality later.
+ * This screen is read-only.
  */
 
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { auth, db } from "../../config/firebase";
 import { Colors, Fonts, Radius, Spacing } from "../../constants/theme";
 
-// Use the existing Servd theme.
 const colors = Colors.light;
 
-// Describes the account information this screen will display.
 type NGOAccount = {
   email: string;
-  fullName: string;
   organisationName: string;
-  phone: string;
-  address: string;
-  registrationNumber: string;
+  contactInfo: string;
+  npoNumber: string;
   verificationStatus: string;
 };
 
 export default function MyAccountScreen() {
-  // Holds the NGO details loaded from Firebase.
   const [account, setAccount] = useState<NGOAccount | null>(null);
-
-  // Tracks whether the initial Firebase request is still running.
   const [loading, setLoading] = useState(true);
-
-  // Shows a message if account information cannot be loaded.
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    // Listen for login and logout changes so the screen uses the current user.
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setAccount(null);
@@ -59,44 +48,39 @@ export default function MyAccountScreen() {
         setLoading(true);
         setErrorMessage("");
 
-        // Read the NGO document using the signed-in user's Firebase UID.
+        // NGO profile documents use the authenticated user's UID.
         const ngoRef = doc(db, "ngos", user.uid);
         const ngoSnapshot = await getDoc(ngoRef);
 
         if (!ngoSnapshot.exists()) {
           setAccount(null);
           setErrorMessage(
-            "We could not find an organisation profile linked to your account."
+            "We could not find an organisation profile linked to your account.",
           );
           return;
         }
 
-        // Use the stored fields when available; fall back to safe display values.
         const ngoData = ngoSnapshot.data();
 
         setAccount({
           email: user.email ?? "",
-          fullName: ngoData.fullName ?? ngoData.contactPerson ?? "",
           organisationName: ngoData.organisationName ?? "",
-          phone: ngoData.phone ?? ngoData.contactNumber ?? "",
-          address: ngoData.address ?? "",
-          registrationNumber: ngoData.registrationNumber ?? "",
-          verificationStatus: ngoData.verificationStatus ?? ngoData.status ?? "Pending",
+          contactInfo: ngoData.contactInfo ?? "",
+          npoNumber: ngoData.npoNumber ?? "",
+          verificationStatus: ngoData.verificationStatus ?? "pending",
         });
       } catch (error) {
-        // Log the technical error for debugging without exposing it to the user.
         console.error("Failed to load NGO account:", error);
+        setAccount(null);
         setErrorMessage("Unable to load your account. Please try again later.");
       } finally {
         setLoading(false);
       }
     });
 
-    // Stop listening when the screen is unmounted.
     return unsubscribe;
   }, []);
 
-  // Show a loading state while Firebase checks the signed-in user and profile.
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -106,7 +90,6 @@ export default function MyAccountScreen() {
     );
   }
 
-  // Explain what went wrong if the profile could not be retrieved.
   if (errorMessage || !account) {
     return (
       <View style={styles.centered}>
@@ -118,27 +101,26 @@ export default function MyAccountScreen() {
     );
   }
 
+  const formattedStatus =
+    account.verificationStatus.charAt(0).toUpperCase() +
+    account.verificationStatus.slice(1);
+
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Brief introduction to the account page. */}
       <Text style={styles.intro}>
         View your account and the organisation details registered with Servd.
       </Text>
 
-      {/* Personal account details. */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Account Details</Text>
 
-        <AccountField label="Email address" value={account.email} />
-        <AccountField label="Full name" value={account.fullName} />
-        <AccountField label="Phone number" value={account.phone} />
+        <AccountField label="Account email" value={account.email} />
       </View>
 
-      {/* Organisation details stored in the NGO Firestore document. */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Organisation Details</Text>
 
@@ -146,22 +128,20 @@ export default function MyAccountScreen() {
           label="Organisation name"
           value={account.organisationName}
         />
-        <AccountField
-          label="Registration number"
-          value={account.registrationNumber}
-        />
-        <AccountField label="Address" value={account.address} />
 
-        {/* Display the status currently stored in Firestore. */}
+        <AccountField
+          label="NPO registration number"
+          value={account.npoNumber}
+        />
+
+        <AccountField label="Contact information" value={account.contactInfo} />
+
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>Verification status</Text>
-          <Text style={styles.statusValue}>
-            {account.verificationStatus}
-          </Text>
+          <Text style={styles.statusValue}>{formattedStatus}</Text>
         </View>
       </View>
 
-      {/* Editing can be added as a separate feature after the data is verified. */}
       <Text style={styles.note}>
         Need to update your details? Please contact the Servd administration
         team.
@@ -170,17 +150,7 @@ export default function MyAccountScreen() {
   );
 }
 
-/**
- * Reusable field component keeps account details consistently formatted.
- * Missing values are displayed clearly rather than showing undefined.
- */
-function AccountField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function AccountField({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -191,7 +161,6 @@ function AccountField({
   );
 }
 
-// Styles follow the simple card-based appearance used throughout Servd.
 const styles = StyleSheet.create({
   screen: {
     flex: 1,

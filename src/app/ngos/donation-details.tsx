@@ -29,6 +29,7 @@ export default function DonationDetails() {
   const {
     documentId,
     donationId,
+    enterpriseId,
     foodName,
     category,
     description,
@@ -38,6 +39,7 @@ export default function DonationDetails() {
   } = useLocalSearchParams<{
     documentId: string;
     donationId: string;
+    enterpriseId: string;
     foodName: string;
     category: string;
     description: string;
@@ -63,7 +65,7 @@ export default function DonationDetails() {
     : "Unknown";
 
   const handleReserveDonation = async () => {
-    if (!documentId || !donationId) {
+    if (!documentId) {
       Alert.alert(
         "Donation unavailable",
         "This donation could not be found. Please return to available donations and try again.",
@@ -89,16 +91,26 @@ export default function DonationDetails() {
       return;
     }
 
+    if (!enterpriseId) {
+      Alert.alert(
+        "Reservation failed",
+        "The food enterprise information is missing. Please return to available donations and try again.",
+      );
+      return;
+    }
+
     setIsReserving(true);
 
     try {
-      await reserveDonationForNGO(
+      const result = await createReservation(
         documentId,
-        donationId,
         currentUser.uid,
-        foodName ?? "",
-        collectionLocation ?? "",
+        enterpriseId,
       );
+
+      if (!result.success) {
+        throw new Error(result.error || "Could not reserve this donation.");
+      }
 
       Alert.alert(
         "Reservation successful!",
@@ -257,7 +269,9 @@ export default function DonationDetails() {
         <View style={styles.referenceRow}>
           <Text style={styles.referenceLabel}>Donation reference</Text>
 
-          <Text style={styles.referenceValue}>{displayValue(donationId)}</Text>
+          <Text style={styles.referenceValue}>
+            {displayValue(donationId || documentId)}
+          </Text>
         </View>
 
         {/* Reservation actions */}
@@ -301,7 +315,7 @@ export default function DonationDetails() {
             )}
           </TouchableOpacity>
 
-          {/* Greyed back button */}
+          {/* Back button */}
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => router.back()}

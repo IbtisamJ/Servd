@@ -134,7 +134,6 @@ export default function EnterpriseTabBar() {
       <MoreMenu
         visible={moreVisible}
         onClose={() => setMoreVisible(false)}
-        onNotifications={() => navigate("/notifications")}
         onProfile={() => navigate("/enterprises/profile")}
         onLogout={handleLogout}
       />

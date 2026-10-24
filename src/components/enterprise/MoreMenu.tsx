@@ -6,7 +6,6 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 type MoreMenuProps = {
   visible: boolean;
   onClose: () => void;
-  onNotifications: () => void;
   onProfile: () => void;
   onLogout: () => void;
 };
@@ -70,7 +69,6 @@ function MenuItem({
 export default function MoreMenu({
   visible,
   onClose,
-  onNotifications,
   onProfile,
   onLogout,
 }: MoreMenuProps) {
@@ -116,13 +114,6 @@ export default function MoreMenu({
           </View>
 
           <View style={styles.menuList}>
-            <MenuItem
-              icon="bell"
-              label="Notifications"
-              description="Stay up to date"
-              onPress={onNotifications}
-            />
-
             <MenuItem
               icon="building"
               label="Enterprise profile"
