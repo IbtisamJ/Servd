@@ -1,7 +1,16 @@
+
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -25,6 +34,8 @@ import { pickAndUploadImage } from "@/services/imageService";
 
 const colors = Colors.light;
 
+type DateFieldName = "collectionDeadline" | "expiryDate";
+
 type DonationForm = {
   foodName: string;
   category: string;
@@ -45,20 +56,33 @@ const initialForm: DonationForm = {
   expiryDate: "",
 };
 
-type FieldProps = {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  multiline?: boolean;
-  keyboardType?: "default" | "numeric";
-  hint?: string;
-};
+/** Converts a date to YYYY-MM-DD using local calendar values. */
+function formatDateForStorage(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+/** Displays a stored date in a readable format. */
+function formatDisplayDate(value: string): string {
+  const date = parseStrictDate(value);
+
+  if (!date) {
+    return "";
+  }
+
+  return date.toLocaleDateString("en-ZA", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 /**
  * Accepts only real dates in YYYY-MM-DD format.
- * Returns the date at 23:59 local time, preserving the existing
- * collection deadline and expiry-date behaviour.
+ * Returns the selected date at 23:59 local time.
  */
 function parseStrictDate(value: string): Date | null {
   const trimmed = value.trim();
@@ -69,13 +93,18 @@ function parseStrictDate(value: string): Date | null {
 
   const [year, month, day] = trimmed.split("-").map(Number);
 
-  if (year < 1000 || month < 1 || month > 12 || day < 1 || day > 31) {
+  if (
+    year < 1000 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
     return null;
   }
 
   const date = new Date(year, month - 1, day, 23, 59, 0, 0);
 
-  // JavaScript normalizes impossible dates, so compare the components.
   if (
     date.getFullYear() !== year ||
     date.getMonth() !== month - 1 ||
@@ -86,6 +115,35 @@ function parseStrictDate(value: string): Date | null {
 
   return date;
 }
+
+/** Returns today's date at midnight for picker constraints. */
+function getTodayAtMidnight(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+/** Returns a date at midnight for calendar minimum-date constraints. */
+function getDateAtMidnight(value: string): Date | undefined {
+  const date = parseStrictDate(value);
+
+  if (!date) {
+    return undefined;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+type FieldProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  multiline?: boolean;
+  keyboardType?: "default" | "numeric";
+  hint?: string;
+};
 
 function FormField({
   label,
@@ -109,7 +167,9 @@ function FormField({
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
         keyboardType={keyboardType}
-        autoCapitalize={keyboardType === "default" ? "sentences" : "none"}
+        autoCapitalize={
+          keyboardType === "default" ? "sentences" : "none"
+        }
       />
 
       {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
@@ -123,6 +183,9 @@ export default function CreateDonationScreen() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [activeDateField, setActiveDateField] =
+    useState<DateFieldName | null>(null);
+
   const [userId, setUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null,
   );
@@ -144,6 +207,46 @@ export default function CreateDonationScreen() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const openDatePicker = (field: DateFieldName) => {
+    if (saving || uploadingImage) {
+      return;
+    }
+
+    setActiveDateField(field);
+  };
+
+  const handleDateChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date,
+  ) => {
+    if (Platform.OS !== "ios") {
+      setActiveDateField(null);
+    }
+
+    if (event.type !== "set" || !selectedDate || !activeDateField) {
+      return;
+    }
+
+    updateField(
+      activeDateField,
+      formatDateForStorage(selectedDate),
+    );
+  };
+
+  const collectionDate = parseStrictDate(form.collectionDeadline);
+  const expiryDateValue = parseStrictDate(form.expiryDate);
+
+  const pickerValue =
+    (activeDateField === "collectionDeadline"
+      ? collectionDate
+      : expiryDateValue) ?? new Date();
+
+  const minimumCollectionDate = getTodayAtMidnight();
+
+  const minimumExpiryDate =
+    getDateAtMidnight(form.collectionDeadline) ??
+    getTodayAtMidnight();
+
   const handlePickImage = async () => {
     if (uploadingImage || saving) {
       return;
@@ -152,7 +255,6 @@ export default function CreateDonationScreen() {
     try {
       setUploadingImage(true);
 
-      // Uses the existing image picker and Cloudinary upload service.
       const uploadedUrl = await pickAndUploadImage();
 
       if (uploadedUrl) {
@@ -175,7 +277,10 @@ export default function CreateDonationScreen() {
     const enterpriseId = currentUser?.uid ?? userId;
 
     if (!enterpriseId) {
-      Alert.alert("Sign in required", "Please sign in to create a donation.");
+      Alert.alert(
+        "Sign in required",
+        "Please sign in to create a donation.",
+      );
       router.replace("/Login" as never);
       return;
     }
@@ -193,8 +298,8 @@ export default function CreateDonationScreen() {
       !description ||
       !quantityInput ||
       !collectionLocation ||
-      !form.collectionDeadline.trim() ||
-      !form.expiryDate.trim()
+      !form.collectionDeadline ||
+      !form.expiryDate
     ) {
       Alert.alert(
         "Missing information",
@@ -204,17 +309,22 @@ export default function CreateDonationScreen() {
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      Alert.alert("Invalid quantity", "Enter a quantity greater than zero.");
+      Alert.alert(
+        "Invalid quantity",
+        "Enter a quantity greater than zero.",
+      );
       return;
     }
 
-    const collectionDeadline = parseStrictDate(form.collectionDeadline);
+    const collectionDeadline = parseStrictDate(
+      form.collectionDeadline,
+    );
     const expiryDate = parseStrictDate(form.expiryDate);
 
     if (!collectionDeadline) {
       Alert.alert(
         "Invalid collection deadline",
-        "Enter a real calendar date in YYYY-MM-DD format, such as 2026-10-25.",
+        "Please select a valid collection deadline from the calendar.",
       );
       return;
     }
@@ -222,7 +332,28 @@ export default function CreateDonationScreen() {
     if (!expiryDate) {
       Alert.alert(
         "Invalid expiry date",
-        "Enter a real calendar date in YYYY-MM-DD format, such as 2026-10-25.",
+        "Please select a valid food expiry date from the calendar.",
+      );
+      return;
+    }
+
+    const today = getTodayAtMidnight();
+
+    if (
+      collectionDeadline.getTime() <
+      new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        23,
+        59,
+        0,
+        0,
+      ).getTime()
+    ) {
+      Alert.alert(
+        "Invalid collection deadline",
+        "The collection deadline cannot be in the past.",
       );
       return;
     }
@@ -257,6 +388,7 @@ export default function CreateDonationScreen() {
 
       setForm(initialForm);
       setImageUrl(null);
+      setActiveDateField(null);
 
       Alert.alert(
         "Donation created",
@@ -264,7 +396,8 @@ export default function CreateDonationScreen() {
         [
           {
             text: "View donations",
-            onPress: () => router.replace("/enterprises/donations" as never),
+            onPress: () =>
+              router.replace("/enterprises/donations" as never),
           },
         ],
       );
@@ -285,7 +418,9 @@ export default function CreateDonationScreen() {
       <View style={styles.container}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Checking your account...</Text>
+          <Text style={styles.loadingText}>
+            Checking your account...
+          </Text>
         </View>
       </View>
     );
@@ -296,7 +431,9 @@ export default function CreateDonationScreen() {
       <View style={styles.container}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Redirecting to sign in...</Text>
+          <Text style={styles.loadingText}>
+            Redirecting to sign in...
+          </Text>
         </View>
       </View>
     );
@@ -307,7 +444,9 @@ export default function CreateDonationScreen() {
       <BrandHeader
         role="ENTERPRISE"
         actionLabel="Donations"
-        onActionPress={() => router.replace("/enterprises/donations" as never)}
+        onActionPress={() =>
+          router.replace("/enterprises/donations" as never)
+        }
       />
 
       <KeyboardAvoidingView
@@ -362,7 +501,8 @@ export default function CreateDonationScreen() {
                     style={({ pressed }) => [
                       styles.changeImageButton,
                       pressed && styles.pressed,
-                      (uploadingImage || saving) && styles.disabledButton,
+                      (uploadingImage || saving) &&
+                        styles.disabledButton,
                     ]}
                   >
                     <FontAwesome5
@@ -371,7 +511,9 @@ export default function CreateDonationScreen() {
                       color={colors.primary}
                       iconStyle="solid"
                     />
-                    <Text style={styles.changeImageText}>Change image</Text>
+                    <Text style={styles.changeImageText}>
+                      Change image
+                    </Text>
                   </Pressable>
                 </View>
               ) : (
@@ -383,11 +525,15 @@ export default function CreateDonationScreen() {
                   style={({ pressed }) => [
                     styles.uploadArea,
                     pressed && styles.pressed,
-                    (uploadingImage || saving) && styles.disabledButton,
+                    (uploadingImage || saving) &&
+                      styles.disabledButton,
                   ]}
                 >
                   {uploadingImage ? (
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator
+                      size="large"
+                      color={colors.primary}
+                    />
                   ) : (
                     <View style={styles.uploadIcon}>
                       <FontAwesome5
@@ -400,7 +546,9 @@ export default function CreateDonationScreen() {
                   )}
 
                   <Text style={styles.uploadTitle}>
-                    {uploadingImage ? "Uploading image..." : "Add food photo"}
+                    {uploadingImage
+                      ? "Uploading image..."
+                      : "Add food photo"}
                   </Text>
                   <Text style={styles.uploadHint}>
                     Tap to select a photo from your device
@@ -438,14 +586,18 @@ export default function CreateDonationScreen() {
                 label="Food name *"
                 placeholder="e.g. Fresh vegetable boxes"
                 value={form.foodName}
-                onChangeText={(value) => updateField("foodName", value)}
+                onChangeText={(value) =>
+                  updateField("foodName", value)
+                }
               />
 
               <FormField
                 label="Category *"
                 placeholder="e.g. Produce, bakery, prepared meals"
                 value={form.category}
-                onChangeText={(value) => updateField("category", value)}
+                onChangeText={(value) =>
+                  updateField("category", value)
+                }
               />
 
               <FormField
@@ -453,7 +605,10 @@ export default function CreateDonationScreen() {
                 placeholder="Enter the number of items or portions"
                 value={form.quantity}
                 onChangeText={(value) =>
-                  updateField("quantity", value.replace(/[^0-9.]/g, ""))
+                  updateField(
+                    "quantity",
+                    value.replace(/[^0-9.]/g, ""),
+                  )
                 }
                 keyboardType="numeric"
                 hint="Use a number. Include the unit in the description if needed."
@@ -463,7 +618,9 @@ export default function CreateDonationScreen() {
                 label="Description *"
                 placeholder="Describe the food, packaging, quantity per item, and any important details..."
                 value={form.description}
-                onChangeText={(value) => updateField("description", value)}
+                onChangeText={(value) =>
+                  updateField("description", value)
+                }
                 multiline
               />
             </View>
@@ -480,7 +637,9 @@ export default function CreateDonationScreen() {
                 </View>
 
                 <View style={styles.sectionHeadingCopy}>
-                  <Text style={styles.sectionTitle}>Collection details</Text>
+                  <Text style={styles.sectionTitle}>
+                    Collection details
+                  </Text>
                   <Text style={styles.sectionDescription}>
                     Let organisations know where and when to collect.
                   </Text>
@@ -497,23 +656,145 @@ export default function CreateDonationScreen() {
                 multiline
               />
 
-              <FormField
-                label="Collection deadline *"
-                placeholder="YYYY-MM-DD"
-                value={form.collectionDeadline}
-                onChangeText={(value) =>
-                  updateField("collectionDeadline", value)
-                }
-                hint="Last date for collection, e.g. 2026-10-25."
-              />
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>
+                  Collection deadline *
+                </Text>
 
-              <FormField
-                label="Food expiry date *"
-                placeholder="YYYY-MM-DD"
-                value={form.expiryDate}
-                onChangeText={(value) => updateField("expiryDate", value)}
-                hint="Enter the food's expiry date in YYYY-MM-DD format."
-              />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose collection deadline"
+                  onPress={() =>
+                    openDatePicker("collectionDeadline")
+                  }
+                  disabled={saving || uploadingImage}
+                  style={({ pressed }) => [
+                    styles.dateInput,
+                    pressed && styles.pressed,
+                    activeDateField === "collectionDeadline" &&
+                      styles.dateInputActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dateInputText,
+                      !form.collectionDeadline &&
+                        styles.datePlaceholder,
+                    ]}
+                  >
+                    {form.collectionDeadline
+                      ? formatDisplayDate(form.collectionDeadline)
+                      : "Select collection deadline"}
+                  </Text>
+
+                  <FontAwesome5
+                    name="calendar-alt"
+                    size={17}
+                    color={colors.primary}
+                    iconStyle="solid"
+                  />
+                </Pressable>
+
+                <Text style={styles.fieldHint}>
+                  Select the last date for collection.
+                </Text>
+
+                {activeDateField === "collectionDeadline" ? (
+                  <View style={styles.datePickerContainer}>
+                    <DateTimePicker
+                      value={pickerValue}
+                      mode="date"
+                      display={
+                        Platform.OS === "ios" ? "spinner" : "default"
+                      }
+                      minimumDate={minimumCollectionDate}
+                      onChange={handleDateChange}
+                      accentColor={colors.primary}
+                    />
+
+                    {Platform.OS === "ios" ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setActiveDateField(null)}
+                        style={styles.dateDoneButton}
+                      >
+                        <Text style={styles.dateDoneButtonText}>
+                          Done
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>
+                  Food expiry date *
+                </Text>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose food expiry date"
+                  onPress={() => openDatePicker("expiryDate")}
+                  disabled={saving || uploadingImage}
+                  style={({ pressed }) => [
+                    styles.dateInput,
+                    pressed && styles.pressed,
+                    activeDateField === "expiryDate" &&
+                      styles.dateInputActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dateInputText,
+                      !form.expiryDate && styles.datePlaceholder,
+                    ]}
+                  >
+                    {form.expiryDate
+                      ? formatDisplayDate(form.expiryDate)
+                      : "Select food expiry date"}
+                  </Text>
+
+                  <FontAwesome5
+                    name="calendar-alt"
+                    size={17}
+                    color={colors.primary}
+                    iconStyle="solid"
+                  />
+                </Pressable>
+
+                <Text style={styles.fieldHint}>
+                  Choose the date the food expires. It must be on or after
+                  the collection deadline.
+                </Text>
+
+                {activeDateField === "expiryDate" ? (
+                  <View style={styles.datePickerContainer}>
+                    <DateTimePicker
+                      value={pickerValue}
+                      mode="date"
+                      display={
+                        Platform.OS === "ios" ? "spinner" : "default"
+                      }
+                      minimumDate={minimumExpiryDate}
+                      onChange={handleDateChange}
+                      accentColor={colors.primary}
+                    />
+
+                    {Platform.OS === "ios" ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setActiveDateField(null)}
+                        style={styles.dateDoneButton}
+                      >
+                        <Text style={styles.dateDoneButtonText}>
+                          Done
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
             </View>
 
             <View style={styles.notice}>
@@ -535,7 +816,8 @@ export default function CreateDonationScreen() {
               onPress={handleCreateDonation}
               style={({ pressed }) => [
                 styles.submitButton,
-                (saving || uploadingImage) && styles.submitButtonDisabled,
+                (saving || uploadingImage) &&
+                  styles.submitButtonDisabled,
                 pressed && !saving && styles.pressed,
               ]}
             >
@@ -558,11 +840,14 @@ export default function CreateDonationScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={saving || uploadingImage}
-              onPress={() => router.replace("/enterprises/donations" as never)}
+              onPress={() =>
+                router.replace("/enterprises/donations" as never)
+              }
               style={({ pressed }) => [
                 styles.cancelButton,
                 pressed && styles.pressed,
-                (saving || uploadingImage) && styles.disabledButton,
+                (saving || uploadingImage) &&
+                  styles.disabledButton,
               ]}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -697,6 +982,51 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
     color: colors.textSecondary,
+  },
+  dateInput: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 11,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+    backgroundColor: "#FFFEFC",
+  },
+  dateInputActive: {
+    borderColor: colors.primary,
+  },
+  dateInputText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: colors.text,
+  },
+  datePlaceholder: {
+    color: "#9699A1",
+  },
+  datePickerContainer: {
+    padding: Spacing.two,
+    borderRadius: Radius.md,
+    backgroundColor: "#F7FAF8",
+    borderWidth: 1,
+    borderColor: colors.backgroundElement,
+  },
+  dateDoneButton: {
+    alignSelf: "flex-end",
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.md,
+    backgroundColor: colors.primary,
+  },
+  dateDoneButtonText: {
+    fontFamily: Fonts.button,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   uploadArea: {
     minHeight: 170,
