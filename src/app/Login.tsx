@@ -7,6 +7,7 @@
  * - Loading animation during login
  */
 
+
 import FontAwesome5 from "@react-native-vector-icons/fontawesome5";
 import { useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
@@ -21,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { db } from "../config/firebase";
 import { COLLECTIONS, NGO_STATUS, ROLES } from "../constants/roles";
 import { Colors } from "../constants/theme";
@@ -33,19 +35,22 @@ import {
 export default function Login() {
   const router = useRouter();
 
-  // Local state for form inputs and UI feedback
+  // Form state and UI feedback.
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Loading animation values
+  // Prevent multiple simultaneous login attempts.
+  const loginInProgress = useRef(false);
+
+  // Animation values.
   const truckAnim = useRef(new Animated.Value(0)).current;
   const wheelAnim = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get("window").width;
 
-  // Plays truck + wheel animation once before routing
+  // Plays the truck animation before routing.
   const playTruckAnimation = () =>
     new Promise<void>((resolve) => {
       truckAnim.setValue(0);
@@ -66,23 +71,34 @@ export default function Login() {
     });
 
   const handleLogin = async () => {
+    // Ignore repeated taps while a login is processing.
+    if (loginInProgress.current) {
+      return;
+    }
+
     setError("");
 
-    if (!email.trim() || !password) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
       return;
     }
 
+    loginInProgress.current = true;
     setLoading(true);
 
     try {
-      const result = await loginUser(email, password);
+      const result = await loginUser(trimmedEmail, password);
 
       if (result.role === ROLES.NGO) {
-        const ngoDoc = await getDoc(doc(db, COLLECTIONS.NGOS, result.uid));
+        const ngoDoc = await getDoc(
+          doc(db, COLLECTIONS.NGOS, result.uid),
+        );
 
         if (!ngoDoc.exists()) {
           await logoutUser();
+
           setError(
             "Your organisation details could not be found. Please contact support.",
           );
@@ -101,11 +117,13 @@ export default function Login() {
           router.replace("/ngos/ngo-dashboard");
         } else if (verificationStatus === NGO_STATUS.REJECTED) {
           await logoutUser();
+
           setError(
             "Your NGO registration was not approved. Please contact support.",
           );
         } else {
           await logoutUser();
+
           setError(
             "Your account is not approved for access. Please contact support.",
           );
@@ -118,19 +136,40 @@ export default function Login() {
         router.replace("/admin");
       } else {
         await logoutUser();
+
         setError(
           "Your account role could not be identified. Please contact support.",
         );
       }
     } catch (error: unknown) {
-      console.error("Login error:", error);
-      setError(getAuthErrorMessage(error));
+      // Extract the Firebase error code without logging the full object.
+      const errorCode =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error
+          ? String((error as { code: unknown }).code)
+          : "unknown";
+
+      console.warn("Login failed:", errorCode);
+
+      // Display a readable message and keep the login screen available.
+      let message =
+        "Unable to log in. Please check your details and try again.";
+
+      try {
+        message = getAuthErrorMessage(error) || message;
+      } catch {
+        // Use the fallback message if error formatting fails.
+      }
+
+      setError(message);
     } finally {
+      loginInProgress.current = false;
       setLoading(false);
     }
   };
 
-  // Animation transforms for truck movement + wheel rotation
+  // Animation transforms.
   const truckTranslateX = truckAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, Math.max(0, screenWidth - 100)],
@@ -162,9 +201,14 @@ export default function Login() {
             autoCapitalize="none"
             autoCorrect={false}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(value) => {
+              setEmail(value);
+              if (error) setError("");
+            }}
             placeholderTextColor={Colors.light.textSecondary}
             accessibilityLabel="Email address"
+            editable={!loading}
+            autoComplete="email"
           />
 
           <View style={styles.passwordContainer}>
@@ -173,18 +217,24 @@ export default function Login() {
               style={styles.passwordInput}
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                setPassword(value);
+                if (error) setError("");
+              }}
               placeholderTextColor={Colors.light.textSecondary}
               accessibilityLabel="Password"
+              editable={!loading}
+              autoComplete="current-password"
             />
 
             <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
+              onPress={() => setShowPassword((previous) => !previous)}
               style={styles.passwordToggle}
               accessibilityRole="button"
               accessibilityLabel={
                 showPassword ? "Hide password" : "Show password"
               }
+              disabled={loading}
             >
               <Text style={styles.passwordToggleText}>
                 {showPassword ? "Hide" : "Show"}
@@ -193,16 +243,24 @@ export default function Login() {
           </View>
 
           {error ? (
-            <Text accessibilityRole="alert" style={styles.error}>
+            <Text
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={styles.error}
+            >
               {error}
             </Text>
           ) : null}
 
           <TouchableOpacity
-            style={styles.button}
+            style={[
+              styles.button,
+              loading && styles.buttonDisabled,
+            ]}
             onPress={handleLogin}
             disabled={loading}
             accessibilityRole="button"
+            accessibilityLabel="Log in to Servd"
           >
             <Text style={styles.buttonText}>LOGIN</Text>
           </TouchableOpacity>
@@ -242,7 +300,9 @@ export default function Login() {
             />
           </Animated.View>
 
-          <Text style={styles.loadingText}>Getting things ready...</Text>
+          <Text style={styles.loadingText}>
+            Getting things ready...
+          </Text>
         </View>
       )}
     </View>
@@ -309,6 +369,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     marginBottom: 16,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: "#fff",
