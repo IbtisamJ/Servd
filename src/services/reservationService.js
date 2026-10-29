@@ -138,7 +138,7 @@ export const createReservation = async (
 
       const existingReservation = await transaction.get(reservationRef);
 
-      if (existingReservation.exists()) {
+      if (existingReservation.exists() && existingReservation.data().status !== STATUS.CANCELLED) {
         throw new Error(
           "A reservation record already exists for this donation.",
         );
